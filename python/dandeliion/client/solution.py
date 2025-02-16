@@ -1,3 +1,27 @@
+"""
+@file python/dandeliion/client/solution.py
+
+Module containing class for handling fetching of/access to solutions
+"""
+
+#
+# Copyright (C) 2024-2025 Dandeliion Team
+#
+# This library is free software; you can redistribute it and/or modify it under
+# the terms of the GNU Lesser General Public License as published by the Free
+# Software Foundation; either version 3.0 of the License, or (at your option)
+# any later version.
+#
+# This library is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public License for more
+# details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with this library; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
+#
+
 # built-in modules
 import logging
 import requests
@@ -5,7 +29,7 @@ import requests
 # custom modules
 from .exceptions import DandeliionAPIException
 
-logger = logging.getLogger(__name___)
+logger = logging.getLogger(__name__)
 
 
 class Solution:
@@ -31,7 +55,7 @@ class Solution:
             config (dict): dictionary should contain url to fetch data and authentication credentials
         """
         self._config = config
-    
+
     def __str__(self):
         return f"Solution(run {str(self._config.id)})"
 
@@ -47,13 +71,13 @@ class Solution:
 
         # fetch all results if necessary  # TODO fetch for each item separately
         if not self._results:
-            headers = {'Authorization': f'Token {api_key}'}  # TODO adapt to server
+            headers = {'Authorization': f'Token {self._config["api_key"]}'}  # TODO adapt to server
             response = requests.get(self._config['results_url'], headers)
             if response.status_code >= 400:
                 raise DandeliionAPIException(f"Your request has failed: {response.reason}")
             self._logs = response.json()['logs']
             self._results = response.json()['results']
-        
+
         if key in self.valid_keys:
             return getattr(self._results, self.valid_keys[key][0])[self.valid_keys[key][1]]
         else:

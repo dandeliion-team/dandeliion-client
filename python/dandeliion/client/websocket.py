@@ -6,37 +6,19 @@ from threading import Condition
 
 class SimulatorWebSocketClient:
 
-    def __init__(self, url, on_open=None, on_message=None, on_error=None, on_close=None, extra_headers=None):
-        self._app = websocket.WebSocketApp(
-            url,
-            on_open=on_open,
-            on_message=on_message,
-            on_error=on_error,
-            on_close=on_close,
-            header=extra_headers,
-        )
-
-        # Initialise the run_forever inside a thread and make this thread as a daemon thread
-        wst = threading.Thread(target=self._app.run_forever)
-        wst.daemon = True
-        wst.start()
-
-    def send_message(self, message):
-        self._app.send(message)
-
     def __init__(self, url: str, api_key: str, on_update=None):
 
         headers = {'Authorization': f'Token {api_key}'}  # TODO adapt to server
 
         self._app = websocket.WebSocketApp(
             url,
-            on_open=on_open,
-            on_message=on_message,
-            on_error=on_error,
-            on_close=on_close,
+            on_open=self.on_open,
+            on_message=self.on_message,
+            on_error=self.on_error,
+            on_close=self.on_close,
             header=headers,
         )
-       
+
         self._on_update = on_update
         self._is_opened = False
         self._is_ready = Condition()
@@ -46,6 +28,9 @@ class SimulatorWebSocketClient:
         # wst.daemon = True  # not needed anymore?
         wst.start()
 
+    def send_message(self, message):
+        self._app.send(message)
+
     def subscribe(self, message):
         with self._is_ready:
             self._is_ready.wait_for(lambda: self._is_opened)
@@ -53,7 +38,7 @@ class SimulatorWebSocketClient:
 
     def close(self):
         self._app.close()
-        
+
     def on_open(self, app):
         with self._is_ready:
             self._is_opened = True

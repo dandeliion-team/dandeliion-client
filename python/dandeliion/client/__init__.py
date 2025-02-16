@@ -72,7 +72,8 @@ def solve(
 
     with open(params) as f:
         data = json.load(f)
-        # TODO verify BPX
+    # validate BPX
+    BPX.parse_bpx_obj(data)
 
     # add/overwrite initial conditions
     if initial_condition:
