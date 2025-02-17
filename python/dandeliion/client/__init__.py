@@ -8,7 +8,7 @@ from dandeliion.client.tools.misc import unflatten_dict, update_dict
 
 # third-party modules
 from pybamm import Experiment
-
+from bpx import BPX
 
 discretizations = {
 }
@@ -46,7 +46,9 @@ def solve(
             to connect to simulation server
         params (str): path to BPX parameter file
         experiment (Experiment): instance of pybamm Experiment;
-        var_pts (dict, optional): simulation mesh specified by the following parameters in dictionary (if none or only subset is provided, either user-defined values stored in the bpx or, if not present, default values will be used instead):
+        var_pts (dict, optional): simulation mesh specified by the following parameters in dictionary
+            (if none or only subset is provided, either user-defined values
+            stored in the bpx or, if not present, default values will be used instead):
 
             * 'x_n' - Number of nodes in the electrolyte (negative electrode). Default is 30.
             * 'x_s' - Number of nodes in the electrolyte (separator). Default is 20.
@@ -63,7 +65,8 @@ def solve(
             * 'Initial temperature [K]'
             * 'Initial concentration in electrolyte [mol.m-3]'
             * 'Initial state of charge'
-        t_output (list, optional): list of times to create outputs for. If not provided, then output times derived from experiment will be used (requires time stop criterion to be provided then)
+        t_output (list, optional): list of times to create outputs for. If not provided, then output
+            times derived from experiment will be used (requires time stop criterion to be provided then)
         dt_eval (float, optional): time step used for resolving discontinuities in experiment. Default is 0.1 seconds.
 
     Returns:
