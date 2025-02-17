@@ -25,6 +25,7 @@ Module containing class for handling fetching of/access to solutions
 # built-in modules
 import logging
 import requests
+import copy
 
 # custom modules
 from .exceptions import DandeliionAPIException
@@ -34,30 +35,43 @@ logger = logging.getLogger(__name__)
 
 class Solution:
     """Dictionary-style class for the solutions of a simulation run
-    returned by :meth:`solve`. Currently contains:
-
-            * 'Time [s]'
-            * 'Voltage [V]'
-            * 'Current [A]'
+    returned by :meth:`solve`
     """
-
-    valid_keys = {
-        "Time [s]": ("total_voltage", "t(s)"),
-        "Voltage [V]": ("total_voltage", "total_voltage(V)"),
-        "Current [A]": ("total_current", "total_current(A)"),
-    }
 
     _results = None
 
     def __init__(self, config: dict):
         """
+        Constructor
+
         Args:
-            config (dict): dictionary should contain url to fetch data and authentication credentials
+            config (dict): dictionary should contain url to fetch data and authentication credentials as well as simulation id and list of expected data columns in results
         """
         self._config = config
+        self._results = {'Solution': {}}
 
     def __str__(self):
         return f"Solution(run {str(self._config.id)})"
+
+    def fetch_results(self, keys: list = None, force_refetch: bool = False):
+        """
+        Function to (pre)fetch data columns from results server if necessary
+        """
+        # determine which keys need to be fetched
+        if keys is None:
+            keys = self.keys()
+
+        params = [('key', key) for key in keys if self._results['Solution'][key] is None or force_refetch]
+        # if no keys need to be fetched, nothing to do
+        if not params:
+            return
+        params.append(('id', self._config['id']))
+        
+        headers = {'Authorization': f"Token {self._config['api_key']}"}  # TODO adapt to server
+        response = requests.get(url=self._config['results_url'], params=params, headers=headers)
+        if response.status_code >= 400:
+            raise DandeliionAPIException(f"Your request has failed: {response.reason}")
+        update_dict(self._results, response.json, inline=True)
 
     def __getitem__(self, key: str):
         """Returns the results requested by the key.
@@ -69,19 +83,14 @@ class Solution:
             object: data as requested by provided key
         """
 
-        # fetch all results if necessary  # TODO fetch for each item separately
-        if not self._results:
-            headers = {'Authorization': f'Token {self._config["api_key"]}'}  # TODO adapt to server
-            response = requests.get(self._config['results_url'], headers)
-            if response.status_code >= 400:
-                raise DandeliionAPIException(f"Your request has failed: {response.reason}")
-            self._logs = response.json()['logs']
-            self._results = response.json()['results']
-
-        if key in self.valid_keys:
-            return getattr(self._results, self.valid_keys[key][0])[self.valid_keys[key][1]]
-        else:
-            raise KeyError(f'The following key is not (yet) found in the provided results: {key}')
+        if 'columns' in self._config and key not in self._config['c']:
+            raise KeyError(
+                f'Column for {key} does not exist in solution. Perhaps '
+                'simulation has not finished successfully (yet)?'
+            )
+        # fetch results for missing key
+        self.fetch_results(keys=[key])
+        return copy.deepcopy(self._results['Solution'][key])
 
     def __setitem__(self, key: str, value):
         raise NotImplementedError("This is a read-only dictionary")
@@ -105,7 +114,10 @@ class Solution:
         raise NotImplementedError("This is a read-only dictionary")
 
     def keys(self):
-        return self.valid_keys.keys()
+        if 'result_columns' in self._config:
+            return self._config['result_columns']
+        else:
+            return self._results['Solution'].keys()
 
     def values(self):
         return [getattr(self._sim.results, val[0])[val[1]] for key, val in self.valid_keys.items()]
@@ -123,10 +135,3 @@ class Solution:
     def __iter__(self):
         for key in self.valid_keys:
             yield key
-
-    @property
-    def stop_message(self):
-        """
-        stop message for simulation run linked to this solution
-        """
-        return self._sim.stop_message

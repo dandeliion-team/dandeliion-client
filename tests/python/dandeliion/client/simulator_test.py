@@ -37,13 +37,13 @@ logger = logging.getLogger(__name__)
 
 
 class MockResponse:
-        def __init__(self, json_data, status_code, reason=None):
-            self.json_data = json_data
-            self.status_code = status_code
-            self.reason = reason
+    def __init__(self, json_data, status_code, reason=None):
+        self.json_data = json_data
+        self.status_code = status_code
+        self.reason = reason
 
-        def json(self):
-            return self.json_data
+    def json(self):
+        return self.json_data
 
 
 @pytest.fixture(scope='function')
