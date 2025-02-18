@@ -27,8 +27,10 @@ import logging
 import requests
 import threading
 from dataclasses import dataclass
+from typing import Optional
 
 # custom modules
+from .tools.misc import update_dict
 from .websocket import SimulatorWebSocketClient
 from .exceptions import DandeliionAPIException
 from .solution import Solution
@@ -40,7 +42,7 @@ logger = logging.getLogger(__name__)
 class Simulator:
 
     """
-    Simulator class that stores authentication details and deals with job submission
+    Simulator class that stores authentication details and deals with job submission and result acquisition
     """
 
     api_url: str
@@ -57,26 +59,64 @@ class Simulator:
         if response.status_code >= 400:
             raise DandeliionAPIException(f"Your request has failed: {response.reason}")
         response_json = response.json()
+
+        run_id = response_json['Run']['id']
+        data = update_dict(parameters, response_json, inline=False)
+
         if is_blocking:
             cond = threading.Condition()
 
             def task_update_signal_hook(updates):
                 with cond:
-                    response_json['status'] = updates['status']
+                    data['Run']['status'] = updates['status']
                     logger.info(updates['log_message'])
                     cond.notify_all()
 
             client = SimulatorWebSocketClient(
-                url=response_json['ws_status_url'],
+                url=data['Run']['ws_status_url'],
                 api_key=self.api_key,
                 on_update=task_update_signal_hook,
             )
-            client.subscribe(response_json['id'])
-            while response_json['status'] in ['Q', 'R']:
+            client.subscribe(run_id)
+            while data['Run']['status'] in ['queued', 'running']:
                 # block until task update signalled
                 with cond:
                     cond.wait()
             # closing connection again
             client.close()
 
-        return Solution(response_json)
+        return Solution(self, data)
+
+    def update_results(self, prefetched_data: dict, keys: list = None, inline: bool = False) -> Optional[dict]:
+        """
+        Function to (pre)fetch result columns from server and update/append prefetched_data
+        """
+        params = [('key', key) for key in keys] if keys is not None else []
+        params.append(('id', prefetched_data['Run']['id']))
+
+        headers = {'Authorization': f'Token {self.api_key}'}  # TODO adapt to server
+        response = requests.get(url=self.api_url, params=params, headers=headers)
+        if response.status_code >= 400:
+            raise DandeliionAPIException(f"Your request has failed: {response.reason}. Try again?")
+
+        response_json = response.json()
+        # sanity check if id for sim returned is same as the one requested
+        if response_json['Run']['id'] != prefetched_data['Run']['id']:
+            raise DandeliionAPIException(
+                'Something went wrong.'
+                f' Reported run id is {response_json['Run']['id']}'
+                f' (requested: {prefetched_data['Run']['id']})'
+            )
+
+        if inline:
+            update_dict(prefetched_data, response.json())
+        return response.json()
+
+    def get_status(self, prefetched_data: dict) -> str:
+        """
+        Returns current status of a simulation (as either stored in prefetched_data
+        if finished/failed or retrieved from server if potentially still queued/running)
+        """
+        if prefetched_data['Run']['status'] in ['queued', 'running']:
+            self.update_results(prefetched_data, inline=True)
+        return prefetched_data['Run']['status']

@@ -1,7 +1,7 @@
 """
 @file python/dandeliion/client/solution.py
 
-Module containing class for handling fetching of/access to solutions
+Module containing class for handling access to solutions
 """
 
 #
@@ -24,8 +24,8 @@ Module containing class for handling fetching of/access to solutions
 
 # built-in modules
 import logging
-import requests
 import copy
+from typing import Protocol, Optional
 
 # custom modules
 from .exceptions import DandeliionAPIException
@@ -33,45 +33,30 @@ from .exceptions import DandeliionAPIException
 logger = logging.getLogger(__name__)
 
 
+class Simulator(Protocol):
+    """ Simulator Protocol """
+    def update_results(self, prefetched_data: dict, keys: list = None, inline: bool = False) -> Optional[dict]: ...
+    def get_status(self, prefetched_data: dict) -> str: ...
+
+
 class Solution:
     """Dictionary-style class for the solutions of a simulation run
     returned by :meth:`solve`
     """
 
-    _results = None
+    _data: dict = None
+    _sim: Simulator = None
 
-    def __init__(self, config: dict):
+    def __init__(self, sim: Simulator, prefetched_data: dict):
         """
         Constructor
 
         Args:
-            config (dict): dictionary should contain url to fetch data and authentication credentials as well as simulation id and list of expected data columns in results
+            sim (Simulator): simulator instance for fetching data from server
+            prefetched_data (dict): existing (meta) data
         """
-        self._config = config
-        self._results = {'Solution': {}}
-
-    def __str__(self):
-        return f"Solution(run {str(self._config.id)})"
-
-    def fetch_results(self, keys: list = None, force_refetch: bool = False):
-        """
-        Function to (pre)fetch data columns from results server if necessary
-        """
-        # determine which keys need to be fetched
-        if keys is None:
-            keys = self.keys()
-
-        params = [('key', key) for key in keys if self._results['Solution'][key] is None or force_refetch]
-        # if no keys need to be fetched, nothing to do
-        if not params:
-            return
-        params.append(('id', self._config['id']))
-        
-        headers = {'Authorization': f"Token {self._config['api_key']}"}  # TODO adapt to server
-        response = requests.get(url=self._config['results_url'], params=params, headers=headers)
-        if response.status_code >= 400:
-            raise DandeliionAPIException(f"Your request has failed: {response.reason}")
-        update_dict(self._results, response.json, inline=True)
+        self._sim = sim
+        self._data = prefetched_data
 
     def __getitem__(self, key: str):
         """Returns the results requested by the key.
@@ -83,20 +68,34 @@ class Solution:
             object: data as requested by provided key
         """
 
-        if 'columns' in self._config and key not in self._config['c']:
+        # if solution not initialised yet, try to fetch from server
+        if self._data.get('Solution', None) is None:
+            self._sim.update_results(self._data, inline=True)
+            # if solution still not initialised (e.g. because simulation
+            # failed or has not finished yet), raise Exception
+            if self._data['Solution'] is None:
+                raise DandeliionAPIException(
+                    'Solution not ready (yet). Check status for details.'
+                )
+
+        if key not in self._data['Solution']:
             raise KeyError(
-                f'Column for {key} does not exist in solution. Perhaps '
-                'simulation has not finished successfully (yet)?'
+                f'Column for {key} does not exist in solution.'
             )
-        # fetch results for missing key
-        self.fetch_results(keys=[key])
-        return copy.deepcopy(self._results['Solution'][key])
+        # fetch data if necessary
+        if self._data['Solution'][key] is None:
+            self._sim.update_results(self._data, keys=[key], inline=True)
+        return copy.deepcopy(self._data['Solution'][key])
+
+    @property
+    def status(self):
+        return self._sim.get_status(self._data)
 
     def __setitem__(self, key: str, value):
         raise NotImplementedError("This is a read-only dictionary")
 
     def __len__(self):
-        return len(self.valid_keys)
+        return len(self.keys())
 
     def __delitem__(self, key):
         raise NotImplementedError("This is a read-only dictionary")
@@ -108,23 +107,19 @@ class Solution:
         return self  # nothing to do since read-only anyways
 
     def has_key(self, k):
-        return k in self.valid_keys
+        return k in self.keys()
 
     def update(self, *args, **kwargs):
         raise NotImplementedError("This is a read-only dictionary")
 
     def keys(self):
-        if 'result_columns' in self._config:
-            return self._config['result_columns']
-        else:
-            return self._results['Solution'].keys()
+        return self._results['Solution'].keys()
 
     def values(self):
-        return [getattr(self._sim.results, val[0])[val[1]] for key, val in self.valid_keys.items()]
+        return self._results['Solution'].values()
 
     def items(self):
-        # a bit dirty, but since solution is read-only, it works
-        return {key: getattr(self._sim.results, val[0])[val[1]] for key, val in self.valid_keys.items()}.items()
+        return self._data['Solution'].items()
 
     def pop(self, *args):
         raise NotImplementedError("This is a read-only dictionary")
@@ -133,5 +128,5 @@ class Solution:
         return item in self.items()
 
     def __iter__(self):
-        for key in self.valid_keys:
+        for key in self.keys():
             yield key

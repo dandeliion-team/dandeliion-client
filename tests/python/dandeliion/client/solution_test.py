@@ -31,19 +31,9 @@ import requests
 from pathlib import Path
 
 # custom modules
-from dandeliion.client.simulator import Simulator, DandeliionAPIException
+from dandeliion.client.solution import Solution, DandeliionAPIException
 
 logger = logging.getLogger(__name__)
-
-
-class MockResponse:
-    def __init__(self, json_data, status_code, reason=None):
-        self.json_data = json_data
-        self.status_code = status_code
-        self.reason = reason
-
-    def json(self):
-        return self.json_data
 
 
 @pytest.fixture(scope='function')
@@ -52,36 +42,44 @@ def mock_results():
     with open(Path(__file__).parent / 'data' / 'output.json', 'r') as f:
         return json.load(f)
 
-@pytest.fixture(scope='function')
-def mock_config():
-    pass  # TODO
+
+@pytest.mark.parametrize('field', ['Time [s]', 'Electrolyte potential [V]'])
+def test_access_prefetched_data_column(field):
+    """
+    Test case for accessing prefetched data
+    """
+    mock_simulator = mock.MagicMock()
+    with open(Path(__file__).parent / 'data' / 'output.json', 'r') as f:
+        prefetched_data = json.load(f)
+
+    solution = Solution(sim=mock_simulator, prefetched_data=prefetched_data)
+    data = solution[field]
+    assert len(mock_simulator.mock_calls) == 0
+    assert data == prefetched_data['Solution'][field]
+
+    
+def test_access_non_prefetched_data_column():
+    """
+    Test case for accessing non-prefetched data
+    """
+    with open(Path(__file__).parent / 'data' / 'output.json', 'r') as f:
+        prefetched_data = json.load(f)
+
+    solution_data = prefetched_data.pop('Solution')
+    prefetched_data['Solution'] = {name: None for name, _ in solution_data.items()}
+
+    field = "Time [s]"
+    def mock_update(data, keys, inline=True):
+        for key in keys:
+            data['Solution'][key] = solution_data[key]
+
+    mock_simulator = mock.MagicMock()
+    mock_simulator.update_results = mock_update
+
+    solution = Solution(sim=mock_simulator, prefetched_data=prefetched_data)
+    data = solution[field]
+    assert data == solution_data[field]
 
 
-@mock.patch('dandeliion.client.solution.requests.post')
-def test_fetch_single_data_column(mock_post):
-    pass  # TODO
-
-
-@mock.patch('dandeliion.client.solution.requests.post')
-def test_fetch_multiple_data_columns(mock_post):
-    pass  # TODO
-
-
-@mock.patch('dandeliion.client.solution.requests.post')
-def test_fetch_all_data_columns(mock_post):
-    pass  # TODO
-
-
-@mock.patch('dandeliion.client.solution.Solution.fetch_results')
-def test_access_pre_fetched_data_column(mock_fetch):
-    pass  # TODO
-
-
-@mock.patch('dandeliion.client.solution.Solution.fetch_results')
-def test_access_non_fetched_data_column(mock_fetch):
-    pass  # TODO
-
-
-@mock.patch('dandeliion.client.solution.Solution.fetch_results')
-def test_access_non_existent_data_column(mock_fetch):
+def test_access_non_existent_data_column():
     pass  # TODO
