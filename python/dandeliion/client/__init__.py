@@ -3,12 +3,13 @@ import json
 
 # custom modules
 from .simulator import Simulator
+from .mock_simulator import MockSimulator
 from .solution import Solution
 from dandeliion.client.tools.misc import unflatten_dict, update_dict
 
 # third-party modules
 from pybamm import Experiment
-from bpx import BPX
+from bpx import parse_bpx_obj
 
 discretizations = {
 }
@@ -65,9 +66,6 @@ def solve(
             * 'Initial temperature [K]'
             * 'Initial concentration in electrolyte [mol.m-3]'
             * 'Initial state of charge'
-        t_output (list, optional): list of times to create outputs for. If not provided, then output
-            times derived from experiment will be used (requires time stop criterion to be provided then)
-        dt_eval (float, optional): time step used for resolving discontinuities in experiment. Default is 0.1 seconds.
 
     Returns:
         :class:`Solution`: solution for this simulation run
@@ -76,7 +74,7 @@ def solve(
     with open(params) as f:
         data = json.load(f)
     # validate BPX
-    BPX.parse_bpx_obj(data)
+    parse_bpx_obj(data)
 
     # add/overwrite initial conditions
     if initial_condition:

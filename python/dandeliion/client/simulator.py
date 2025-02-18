@@ -110,7 +110,8 @@ class Simulator:
 
         if inline:
             update_dict(prefetched_data, response.json())
-        return response.json()
+        else:
+            return response.json()
 
     def get_status(self, prefetched_data: dict) -> str:
         """
