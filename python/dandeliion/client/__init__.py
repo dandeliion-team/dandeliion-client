@@ -3,7 +3,6 @@ import json
 
 # custom modules
 from .simulator import Simulator
-from .mock_simulator import MockSimulator
 from .solution import Solution
 from dandeliion.client.tools.misc import unflatten_dict, update_dict
 
