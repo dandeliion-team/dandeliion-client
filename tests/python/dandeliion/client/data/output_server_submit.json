@@ -1,0 +1,12 @@
+{
+    "Header":{
+	"Backend":"dandeliion-models v0.1.0",
+	"Model":"DFN","Title":"About:Energy Gen1 Demo 21700 NMC811|graphite 5 Ah cell",
+	"Thermal model":"Lumped"
+    },
+    "Run":{
+	"id": 42,
+	"status": "queued",
+	"ws_status_url": "ws://example.com"
+    }
+}
