@@ -103,9 +103,9 @@ class Simulator:
         # sanity check if id for sim returned is same as the one requested
         if response_json['Run']['id'] != prefetched_data['Run']['id']:
             raise DandeliionAPIException(
-                'Something went wrong.'
-                f' Reported run id is {response_json['Run']['id']}'
-                f' (requested: {prefetched_data['Run']['id']})'
+                "Something went wrong."
+                f" Reported run id is {response_json['Run']['id']}"
+                f" (requested: {prefetched_data['Run']['id']})"
             )
 
         if inline:
