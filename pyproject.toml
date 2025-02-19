@@ -29,7 +29,7 @@ maintainers = [
 
 [project.urls]
 Homepage = "https://dandeliion.com"
-# Documentation = "https://readthedocs.org"
+Documentation = "https://dandeliion-team.github.io/dandeliion-client/"
 Repository = "https://github.com/dandeliion-team/dandeliion-client"
 "Bug Tracker" = "https://github.com/dandeliion-team/dandeliion-client/issues"
 Changelog = "https://github.com/dandeliion-team/dandeliion-client/blob/develop/CHANGELOG.md"
