@@ -82,4 +82,14 @@ def test_access_non_prefetched_data_column():
 
 
 def test_access_non_existent_data_column():
-    pass  # TODO
+    """
+    Test case for accessing non-existent result column
+    """
+    mock_simulator = mock.MagicMock()
+    with open(Path(__file__).parent / 'data' / 'output.json', 'r') as f:
+        prefetched_data = json.load(f)
+
+    solution = Solution(sim=mock_simulator, prefetched_data=prefetched_data)
+    field = "Non-Existing Field"
+    with pytest.raises(KeyError):
+        solution[field]
