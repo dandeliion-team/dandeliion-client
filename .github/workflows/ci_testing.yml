@@ -1,3 +1,5 @@
+name: ci-testing
+
 on:
   push:
     branches:
