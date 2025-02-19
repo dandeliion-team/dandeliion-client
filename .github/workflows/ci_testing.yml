@@ -4,8 +4,6 @@ on:
   push:
     branches:
       - "master"
-    types:
-      - closed
 
 jobs:
   if_merged:
