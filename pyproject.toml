@@ -4,13 +4,13 @@ build-backend = "hatchling.build"
 
 [project]
 name = "dandeliion-client"
-version = "0.1"
+version = "0.3"
 description = "Client for accessing Dandeliion services"
 readme = "README.md"
 license = { file = "LICENSE.txt" }
 keywords = ["dandeliion", "client"]
 classifiers = [
-  "Development Status :: 3 - Alpha",
+  "Development Status :: 4 - Beta",
   "Programming Language :: Python",
   "Intended Audience :: Science/Research",
 ]
@@ -77,16 +77,6 @@ pythonpath = [
 where = ["src/python"]
 include = ["dandeliion"]
 
-# [tool.hatch]
-# build.targets.sdist.include = [
-#   "src/dandeliion",
-# ]
-
 [tool.hatch.build.targets.wheel]
-packages = ["dandeliion-client"]
-
-# [tool.hatch.build.targets.wheel.sources]
-# "src/dandeliion/client" = "dandeliion/client"
-
-# [tool.hatch.build]
-# include = ['dandeliion']
+sources = ["src/python"]
+only-include = ["src/python/dandeliion/client"]
