@@ -74,13 +74,22 @@ pythonpath = [
 ]
 
 [tool.setuptools.packages.find]
-where = ["python"]
+where = ["src"]
 include = ["dandeliion"]
 
-[tool.hatch]
-build.targets.sdist.include = [
-  "python/dandeliion",
-]
+# [tool.hatch]
+# build.targets.sdist.include = [
+#   "src/dandeliion",
+# ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/dandeliion"]
+packages = ["src/dandeliion/client"]
+
+[tool.hatch.build]
+include = ['dandeliion/client']
+
+# [tool.hatch.build.targets.sdist]
+# include = [
+#   "dandeliion/client/*.py",
+#   "tests",
+# ]
