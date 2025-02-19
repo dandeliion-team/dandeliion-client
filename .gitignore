@@ -1,0 +1,8 @@
+# Environments
+.venv
+
+# Cache and temporary files
+__pycache__
+docs/_build
+docs/stubs
+*~

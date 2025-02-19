@@ -1,0 +1,82 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "dandeliion-client"
+version = "0.3"
+description = "Client for accessing Dandeliion services"
+readme = "README.md"
+license = { file = "LICENSE.txt" }
+keywords = ["dandeliion", "client"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Programming Language :: Python",
+  "Intended Audience :: Science/Research",
+]
+dependencies = [
+  "bpx",
+  "pybamm~=25.1.1",
+  "websocket-client~=1.8.0",
+]
+requires-python = ">=3.9"
+authors = [
+  {name = "DandeLiion Team", email = "team@dandeliion.com"},
+]
+maintainers = [
+  {name = "DandeLiion Team", email = "team@dandeliion.com"},
+]
+
+[project.urls]
+Homepage = "https://dandeliion.com"
+# Documentation = "https://readthedocs.org"
+Repository = "https://github.com/dandeliion-team/dandeliion-client"
+"Bug Tracker" = "https://github.com/dandeliion-team/dandeliion-client/issues"
+Changelog = "https://github.com/dandeliion-team/dandeliion-client/blob/develop/CHANGELOG.md"
+
+[project.optional-dependencies]
+docs = [
+    "sphinx>=6",
+    "sphinx_rtd_theme>=0.5",
+    "pydata-sphinx-theme",
+    "sphinx_design",
+    "sphinx-copybutton",
+    "myst-parser",
+    "sphinx-inline-tabs",
+    "sphinxcontrib-bibtex",
+    "sphinx-autobuild",
+    "sphinx-last-updated-by-git",
+    "nbsphinx",
+    "ipykernel",
+    "ipywidgets",
+    "sphinx-gallery",
+    "sphinx-hoverxref",
+    "sphinx-docsearch",
+]
+dev = [
+    "nox",
+    "pytest",
+    "pytest-sugar",
+    "pytest-cov",
+    "black",
+    "flake8",
+    "flake8-docstrings",
+    "mypy",
+    "pre-commit",
+]
+
+# [tool.pytest]
+# addopts = -p no:warnings
+
+[tool.pytest.ini_options]
+pythonpath = [
+  "src/python"
+]
+
+[tool.setuptools.packages.find]
+where = ["src/python"]
+include = ["dandeliion"]
+
+[tool.hatch.build.targets.wheel]
+sources = ["src/python"]
+only-include = ["src/python/dandeliion/client"]
