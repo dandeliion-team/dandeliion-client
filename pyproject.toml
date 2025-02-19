@@ -70,11 +70,11 @@ dev = [
 
 [tool.pytest.ini_options]
 pythonpath = [
-  "python"
+  "src/python"
 ]
 
 [tool.setuptools.packages.find]
-where = ["src"]
+where = ["src/python"]
 include = ["dandeliion"]
 
 # [tool.hatch]
@@ -83,13 +83,10 @@ include = ["dandeliion"]
 # ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/dandeliion/client"]
+packages = ["dandeliion-client"]
 
-[tool.hatch.build]
-include = ['dandeliion/client']
+# [tool.hatch.build.targets.wheel.sources]
+# "src/dandeliion/client" = "dandeliion/client"
 
-# [tool.hatch.build.targets.sdist]
-# include = [
-#   "dandeliion/client/*.py",
-#   "tests",
-# ]
+# [tool.hatch.build]
+# include = ['dandeliion']

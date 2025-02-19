@@ -65,7 +65,7 @@ class InterpolatedArray(np.ndarray):
             raise ValueError('x and y must be of same length')
         return np.interp(t, self.t, self)
 
-    
+
 class Solution:
     """Dictionary-style class for the solutions of a simulation run
     returned by :meth:`solve`
@@ -99,7 +99,7 @@ class Solution:
             raise DandeliionAPIException(
                 'Solution not ready (yet). Check status for details.'
             )
-        
+
     def __getitem__(self, key: str):
         """Returns the results requested by the key.
 

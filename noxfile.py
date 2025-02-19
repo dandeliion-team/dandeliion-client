@@ -11,4 +11,4 @@ def lint(session):
     session.install('flake8')
     session.run('flake8',
                 '--max-line-length', '120',
-                'python')
+                'src/python')
