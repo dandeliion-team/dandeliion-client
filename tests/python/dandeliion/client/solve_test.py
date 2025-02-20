@@ -34,6 +34,7 @@ from dandeliion.client import solve, _convert_experiment
 
 # third-party modules
 from pybamm import Experiment
+from bpx import parse_bpx_file
 
 
 logger = logging.getLogger(__name__)
@@ -113,7 +114,34 @@ def test_solve_with_bpx_dict(mock_convert, input_bpx):
         is_blocking=True,
     )
     assert solution == mock_simulator.submit.return_value
-  
+
+
+@mock.patch('dandeliion.client._convert_experiment')
+def test_solve_with_bpx_obj(mock_convert, input_bpx):
+    """
+    Test case for accessing prefetched data
+    """
+    mock_simulator = mock.MagicMock()
+    mock_convert.return_value = mock.Mock()
+
+    experiment = mock.Mock(),
+    bpx = parse_bpx_file(input_bpx[0])
+    
+    solution = solve(
+        simulator=mock_simulator,
+        params=bpx,
+        experiment=experiment
+    )
+
+    input_bpx[1]['Parameterisation']["User-defined"]['DandeLiion: Experiment'] = mock_convert.return_value
+
+    assert len(mock_simulator.mock_calls) == 1
+    mock_simulator.submit.assert_called_once_with(
+        parameters=input_bpx[1],
+        is_blocking=True,
+    )
+    assert solution == mock_simulator.submit.return_value
+
 
 @mock.patch('dandeliion.client._convert_experiment')
 def test_solve_with_extra_params(mock_convert, input_bpx):
@@ -147,17 +175,26 @@ def test_solve_with_extra_params(mock_convert, input_bpx):
     assert solution == mock_simulator.submit.return_value
 
 
-def test_solve_with_invalid_bpx(invalid_input_bpx):
+def test_solve_with_invalid_params(invalid_input_bpx):
     """
-    Test case for accessing prefetched data
+    Test case for solve behaviour with invalid params
     """
     mock_simulator = mock.MagicMock()
     experiment = mock.Mock(),
 
+    # params are not valid bpx
     with pytest.raises(Exception):
         solve(
             simulator=mock_simulator,
             params=invalid_input_bpx[0],
+            experiment=experiment
+        )
+
+    # params are not valid input type (e.g. list)
+    with pytest.raises(ValueError):
+        solve(
+            simulator=mock_simulator,
+            params=list(),
             experiment=experiment
         )
 
