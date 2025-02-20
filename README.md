@@ -5,6 +5,7 @@
 <div align="center">
 
 [![ci-testing](https://github.com/dandeliion-team/dandeliion-client/actions/workflows/ci_testing.yml/badge.svg?branch=master)](https://github.com/dandeliion-team/dandeliion-client/actions/workflows/ci_testing.yml)
+[![documentation](https://github.com/dandeliion-team/dandeliion-client/actions/workflows/pages/pages-build-deployment/badge.svg)](https://github.com/dandeliion-team/dandeliion-client/actions/workflows/pages/pages-build-deployment)
 [![release](https://img.shields.io/github/v/release/dandeliion-team/dandeliion-client?color=yellow)](https://github.com/dandeliion-team/dandeliion-client/releases)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/pybamm-team/PyBaMM/badge)](https://scorecard.dev/viewer/?uri=github.com/dandeliion-team/dandeliion-client)
 
