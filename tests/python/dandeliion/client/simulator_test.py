@@ -28,7 +28,6 @@ import json
 import copy
 import pytest
 from unittest import mock
-import requests
 from pathlib import Path
 
 # custom modules
@@ -70,10 +69,10 @@ def test_submit_non_blocking(mock_post, input_extended_bpx):
     mock_server_return = {'Run': {'ws_status_url': mock.Mock(), 'id': mock.Mock()}}
 
     mock_post.return_value = MockResponse(json_data=mock_server_return, status_code=200)
-    
+
     simulator = Simulator(api_url=mock_url, api_key=mock_api_key)
     solution = simulator.submit(input_extended_bpx, is_blocking=False)
-    
+
     # check that REST API was called with correct values
     mock_post.assert_called_once_with(
         url=mock_url,
@@ -95,13 +94,13 @@ def test_submit_blocking(mock_post, mock_wsclient, input_extended_bpx, caplog):
     mock_url = mock.Mock()
     mock_server_return = {'Run': {'ws_status_url': mock.Mock(), 'id': mock.Mock(), 'status': 'success'}}
     mock_wsclient.return_value = mock.MagicMock()
-    
+
     mock_post.return_value = MockResponse(json_data=mock_server_return, status_code=200)
-    
+
     simulator = Simulator(api_url=mock_url, api_key=mock_api_key)
     simulator.submit(input_extended_bpx)
 
-    # check that ws client was initialised correctly    
+    # check that ws client was initialised correctly
     mock_wsclient.assert_called_once_with(
         mock.ANY,
         url=mock_server_return['Run']['ws_status_url'],
@@ -157,7 +156,7 @@ def test_update_results_no_key_no_inline(mock_get):
         params=[('id', prefetched_data['Run']['id'])],
         headers={'Authorization': f'Token {mock_api_key}'},
     )
-    
+
     # check that prefetched data was not altered
     assert prefetched_data == prefetched_backup
 
@@ -181,7 +180,7 @@ def test_update_results_with_keys(mock_get):
     returned_data['Solution'] = 'some other solution'
     mock_get.return_value = MockResponse(json_data=returned_data, status_code=200)
     keys = [mock.Mock(), mock.Mock(), mock.Mock()]
-    
+
     simulator = Simulator(api_url=mock_url, api_key=mock_api_key)
     fetched = simulator.update_results(prefetched_data, keys=keys)
 
@@ -191,13 +190,13 @@ def test_update_results_with_keys(mock_get):
         params=[*[('key', key) for key in keys], ('id', prefetched_data['Run']['id'])],
         headers={'Authorization': f'Token {mock_api_key}'},
     )
-    
+
     # check that prefetched data was not altered
     assert prefetched_data == prefetched_backup
 
     # check that returned data is fetched data
     assert fetched == returned_data
-   
+
 
 @mock.patch('dandeliion.client.simulator.update_dict')
 @mock.patch('dandeliion.client.simulator.requests.get')
@@ -216,8 +215,7 @@ def test_update_results_inline(mock_get, mock_update_dict):
     returned_data['Solution'] = 'some other solution'
     mock_get.return_value = MockResponse(json_data=returned_data, status_code=200)
     mock_update_dict.return_value = mock.Mock()
-    keys = [mock.Mock(), mock.Mock(), mock.Mock()]
-    
+
     simulator = Simulator(api_url=mock_url, api_key=mock_api_key)
     simulator.update_results(prefetched_data, inline=True)
 
@@ -288,8 +286,8 @@ def test_get_status_when_running(mock_update, status):
         'Run': {'status': status},
     }
     simulator = Simulator(api_url=mock.Mock(), api_key=mock.Mock())
-    returned_status = simulator.get_status(prefetched_data)
-    
+    simulator.get_status(prefetched_data)
+
     # update should have not been called in these cases
     mock_update.assert_called_once_with(
         prefetched_data,

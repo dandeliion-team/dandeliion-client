@@ -27,11 +27,10 @@ import logging
 import json
 import pytest
 from unittest import mock
-import requests
 from pathlib import Path
 
 # custom modules
-from dandeliion.client.solution import Solution, DandeliionAPIException
+from dandeliion.client.solution import Solution
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +56,7 @@ def test_access_prefetched_data_column(field):
     assert len(mock_simulator.mock_calls) == 0
     assert data == prefetched_data['Solution'][field]
 
-    
+
 def test_access_non_prefetched_data_column():
     """
     Test case for accessing non-prefetched data
@@ -69,6 +68,7 @@ def test_access_non_prefetched_data_column():
     prefetched_data['Solution'] = {name: None for name, _ in solution_data.items()}
 
     field = "Time [s]"
+
     def mock_update(data, keys, inline=True):
         for key in keys:
             data['Solution'][key] = solution_data[key]
