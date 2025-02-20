@@ -90,6 +90,32 @@ def test_solve_with_defaults(mock_convert, input_bpx):
 
 
 @mock.patch('dandeliion.client._convert_experiment')
+def test_solve_with_bpx_dict(mock_convert, input_bpx):
+    """
+    Test case for accessing prefetched data
+    """
+    mock_simulator = mock.MagicMock()
+    mock_convert.return_value = mock.Mock()
+
+    experiment = mock.Mock(),
+
+    solution = solve(
+        simulator=mock_simulator,
+        params=input_bpx[1],
+        experiment=experiment
+    )
+
+    input_bpx[1]['Parameterisation']["User-defined"]['DandeLiion: Experiment'] = mock_convert.return_value
+
+    assert len(mock_simulator.mock_calls) == 1
+    mock_simulator.submit.assert_called_once_with(
+        parameters=input_bpx[1],
+        is_blocking=True,
+    )
+    assert solution == mock_simulator.submit.return_value
+  
+
+@mock.patch('dandeliion.client._convert_experiment')
 def test_solve_with_extra_params(mock_convert, input_bpx):
     """
     Test case for accessing prefetched data
