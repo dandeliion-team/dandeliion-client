@@ -6,7 +6,6 @@ on:
       - "master"
   workflow_call:
   pull_request:
-    types: [synchronize]
 
 jobs:
   unittests:

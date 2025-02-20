@@ -2,7 +2,6 @@ name: documentation
 
 on:
   pull_request:
-    types: [synchronize]
   push:
     branches:
       - "master"
