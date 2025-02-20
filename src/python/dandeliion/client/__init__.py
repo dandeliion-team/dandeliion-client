@@ -1,6 +1,7 @@
 # built-in modules
 import json
 from pathlib import Path
+from typing import Union
 
 # custom modules
 from .simulator import Simulator
@@ -33,7 +34,7 @@ def _convert_experiment(experiment: Experiment):
 
 def solve(
         simulator: Simulator,
-        params: str | Path | dict,
+        params: Union[str, Path, dict],
         experiment: Experiment,
         extra_params: dict = None,
 ) -> Solution:
