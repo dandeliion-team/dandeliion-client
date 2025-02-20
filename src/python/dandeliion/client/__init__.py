@@ -35,17 +35,17 @@ def _convert_experiment(experiment: Experiment):
 def solve(
         simulator: Simulator,
         params: Union[str, Path, dict],
-        experiment: Experiment,
+        experiment: Experiment = None,
         extra_params: dict = None,
 ) -> Solution:
 
-    """Method for submitting/running a Dandeliion simulation.
+    """Method for submitting/running a DandeLiion simulation.
 
     Args:
         simulator (Simulator): instance of simulator class providing information
             to connect to simulation server
         params (str|Path|dict): path to BPX parameter file or already read-in valid BPX as dict
-        experiment (Experiment): instance of pybamm Experiment defining steps
+        experiment (Experiment, optional): instance of pybamm Experiment defining steps
         extra_params (dict, optional): extra parameters e.g. simulation mesh, choice of discretisation method
             and initial conditions specified in the dictionary
             (if none or only subset is provided, either user-defined values
@@ -57,6 +57,7 @@ def solve(
     if not isinstance(params, dict):
         with open(params, 'r') as f:
             params = json.load(f)
+
     # validate BPX
     parse_bpx_obj(params)
 
@@ -64,7 +65,8 @@ def solve(
         params['Parameterisation']["User-defined"] = {}
 
     # add experiment
-    params['Parameterisation']["User-defined"]["DandeLiion: Experiment"] = _convert_experiment(experiment)
+    if experiment:
+        params['Parameterisation']["User-defined"]["DandeLiion: Experiment"] = _convert_experiment(experiment)
 
     # add/overwrite extra parameters
     if extra_params:
