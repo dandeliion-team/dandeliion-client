@@ -30,7 +30,10 @@ from unittest import mock
 from pathlib import Path
 
 # custom modules
-from dandeliion.client.solution import Solution
+from dandeliion.client.solution import Solution, InterpolatedArray, DandeliionAPIException
+
+# third-party modules
+import numpy as np
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +48,7 @@ def mock_results():
 @pytest.mark.parametrize('field', ['Time [s]', 'Electrolyte potential [V]'])
 def test_access_prefetched_data_column(field):
     """
-    Test case for accessing prefetched data
+    Test case for accessing prefetched data (without defined time column)
     """
     mock_simulator = mock.MagicMock()
     with open(Path(__file__).parent / 'data' / 'output.json', 'r') as f:
@@ -54,7 +57,29 @@ def test_access_prefetched_data_column(field):
     solution = Solution(sim=mock_simulator, prefetched_data=prefetched_data)
     data = solution[field]
     assert len(mock_simulator.mock_calls) == 0
-    assert data == prefetched_data['Solution'][field]
+    assert np.array_equal(data, prefetched_data['Solution'][field])
+    assert not isinstance(data, InterpolatedArray)
+
+
+@pytest.mark.parametrize('field,valid', [('Current [A]', True), ('Electrolyte potential [V]', False), ('Electrolyte x-coordinate [m]', False)])
+def test_access_prefetched_data_column_with_time_column(field, valid):
+    """
+    Test case for accessing prefetched data with defined time column (with valid time series and without)
+    """
+    mock_simulator = mock.MagicMock()
+    with open(Path(__file__).parent / 'data' / 'output.json', 'r') as f:
+        prefetched_data = json.load(f)
+
+    solution = Solution(sim=mock_simulator, prefetched_data=prefetched_data, time_column='Time [s]')
+    data = solution[field]
+    assert len(mock_simulator.mock_calls) == 0
+    assert np.array_equal(data, prefetched_data['Solution'][field])
+    assert isinstance(data, InterpolatedArray)
+    if valid:
+        solution[field](t=42)
+    else:
+        with pytest.raises(ValueError):
+            solution[field](t=42)
 
 
 def test_access_non_prefetched_data_column():
@@ -93,3 +118,64 @@ def test_access_non_existent_data_column():
     field = "Non-Existing Field"
     with pytest.raises(KeyError):
         solution[field]
+
+
+@pytest.mark.parametrize("fct,args", [('keys', []), ('items', []), ])
+@mock.patch('dandeliion.client.solution.Solution._init_solution')
+def test_dict_functions(mock_init, fct, args):
+    """
+    Test case for various dict functions for solutions (keys, values, items, etc)
+    """
+    mock_simulator = mock.MagicMock()
+    with open(Path(__file__).parent / 'data' / 'output.json', 'r') as f:
+        prefetched_data = json.load(f)
+
+    solution = Solution(sim=mock_simulator, prefetched_data=prefetched_data)
+    mock_init.assert_not_called()
+    assert getattr(prefetched_data['Solution'], fct)(*args) == getattr(solution, fct)(*args)
+
+
+@pytest.mark.parametrize("fct,args", [('keys', []), ('items', []), ])
+@mock.patch('dandeliion.client.solution.Solution._init_solution')
+def test_dict_functions_with_init(mock_init, fct, args):
+    """
+    Test case for various dict functions for solutions with uninitialised solutions (so initialising first)
+    """
+    mock_simulator = mock.MagicMock()
+    prefetched_data = {}
+
+    def mock_init_solution():
+        prefetched_data['Solution'] = {}
+
+    with mock.patch("dandeliion.client.solution.Solution._init_solution", wraps=mock_init_solution) as mock_init:
+        solution = Solution(sim=mock_simulator, prefetched_data=prefetched_data)
+        mock_init.assert_not_called()
+        getattr(solution, fct)(*args)
+        mock_init.assert_called_once_with()
+
+
+@pytest.mark.parametrize("fct,args", [('pop', ['something']), ('clear', []), ('update', [])])
+def test_disabled_dict_functions(fct, args):
+    """
+    Test to check that editing dict functions are marked as non-implemented (by Exception)
+    """
+    solution = Solution(sim=mock.Mock(), prefetched_data=mock.Mock())
+
+    with pytest.raises(NotImplementedError):
+        getattr(solution, fct)(*args)
+
+
+def test_init_solution():
+    """
+    Test case for various dict functions for solutions with uninitialised solutions (so initialising first)
+    """
+    mock_simulator = mock.MagicMock()
+    prefetched_data = {'Solution': None}
+
+    solution = Solution(sim=mock_simulator, prefetched_data=prefetched_data)
+    with pytest.raises(DandeliionAPIException):
+        solution._init_solution()
+    mock_simulator.update_results.assert_called_once_with(
+        prefetched_data,
+        inline=True,
+    )

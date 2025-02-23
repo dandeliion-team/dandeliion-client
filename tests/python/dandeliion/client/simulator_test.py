@@ -84,7 +84,7 @@ def test_submit_non_blocking(mock_post, input_extended_bpx):
     assert solution._data['Run'] == mock_server_return['Run']
 
 
-@mock.patch('dandeliion.client.simulator.SimulatorWebSocketClient.__new__')
+@mock.patch('dandeliion.client.simulator.SimulatorWebSocketClient')
 @mock.patch('dandeliion.client.simulator.requests.post')
 def test_submit_blocking(mock_post, mock_wsclient, input_extended_bpx, caplog):
     """
@@ -102,7 +102,6 @@ def test_submit_blocking(mock_post, mock_wsclient, input_extended_bpx, caplog):
 
     # check that ws client was initialised correctly
     mock_wsclient.assert_called_once_with(
-        mock.ANY,
         url=mock_server_return['Run']['ws_status_url'],
         api_key=mock_api_key,
         on_update=mock.ANY,
@@ -114,7 +113,7 @@ def test_submit_blocking(mock_post, mock_wsclient, input_extended_bpx, caplog):
         mock_wsclient.call_args[1]['on_update'](updates={'status': 'queued', 'log_message': 'some log message'})
     assert mock_server_return['Run']['status'] == 'queued'
     assert 'some log message' in caplog.text
-
+    
 
 @mock.patch('dandeliion.client.simulator.requests.post')
 def test_submit_server_error(mock_post, input_extended_bpx):
