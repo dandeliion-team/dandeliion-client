@@ -126,7 +126,7 @@ def test_solve_with_bpx_obj(mock_convert, input_bpx):
 
     experiment = mock.Mock(),
     bpx = parse_bpx_file(input_bpx[0])
-    
+
     solution = solve(
         simulator=mock_simulator,
         params=bpx,

@@ -40,7 +40,7 @@ with open(Path(__file__).parent / 'data' / 'output_server_finished.json', 'r') a
 
 
 logger = logging.getLogger(__name__)
-    
+
 
 class MockSimulator(Simulator):
 
