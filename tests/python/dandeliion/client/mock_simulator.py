@@ -27,6 +27,7 @@ import json
 import copy
 from typing import Optional
 from pathlib import Path
+import logging
 
 # custom modules
 from dandeliion.client import Solution, Simulator
@@ -38,9 +39,16 @@ with open(Path(__file__).parent / 'data' / 'output_server_finished.json', 'r') a
     fetch_data = json.load(f)
 
 
+logger = logging.getLogger(__name__)
+    
+
 class MockSimulator(Simulator):
 
     def submit(self, parameters: dict, is_blocking: bool = True):
+        if isinstance(self.api_url, Path):
+            with open(self.api_url, 'w') as f:
+                json.dump(parameters, f, indent=4)
+                logger.info(f"Submitted parameters written to file: {self.api_url}")
         return Solution(self, copy.deepcopy(submit_data), time_column='Time [s]')
 
     def update_results(self, prefetched_data: dict, keys: list = None, inline: bool = False) -> Optional[dict]:
