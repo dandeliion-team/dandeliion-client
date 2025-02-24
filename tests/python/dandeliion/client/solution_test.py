@@ -120,7 +120,7 @@ def test_access_non_existent_data_column():
         solution[field]
 
 
-@pytest.mark.parametrize("fct,args", [('keys', []), ('items', []), ])
+@pytest.mark.parametrize("fct,args", [('keys', []), ('items', []), ('values', []),  ('__iter__', []), ])
 @mock.patch('dandeliion.client.solution.Solution._init_solution')
 def test_dict_functions(mock_init, fct, args):
     """
@@ -132,10 +132,12 @@ def test_dict_functions(mock_init, fct, args):
 
     solution = Solution(sim=mock_simulator, prefetched_data=prefetched_data)
     mock_init.assert_not_called()
-    assert getattr(prefetched_data['Solution'], fct)(*args) == getattr(solution, fct)(*args)
+    print(getattr(solution, fct)(*args))
+    assert list(getattr(prefetched_data['Solution'], fct)(*args)) == list(getattr(solution, fct)(*args))
+    mock_init.assert_not_called()
 
 
-@pytest.mark.parametrize("fct,args", [('keys', []), ('items', []), ])
+@pytest.mark.parametrize("fct,args", [('keys', []), ('items', []), ('values', []),  ('__iter__', []),])
 @mock.patch('dandeliion.client.solution.Solution._init_solution')
 def test_dict_functions_with_init(mock_init, fct, args):
     """
@@ -150,19 +152,8 @@ def test_dict_functions_with_init(mock_init, fct, args):
     with mock.patch("dandeliion.client.solution.Solution._init_solution", wraps=mock_init_solution) as mock_init:
         solution = Solution(sim=mock_simulator, prefetched_data=prefetched_data)
         mock_init.assert_not_called()
-        getattr(solution, fct)(*args)
+        list(getattr(solution, fct)(*args))
         mock_init.assert_called_once_with()
-
-
-@pytest.mark.parametrize("fct,args", [('pop', ['something']), ('clear', []), ('update', [])])
-def test_disabled_dict_functions(fct, args):
-    """
-    Test to check that editing dict functions are marked as non-implemented (by Exception)
-    """
-    solution = Solution(sim=mock.Mock(), prefetched_data=mock.Mock())
-
-    with pytest.raises(NotImplementedError):
-        getattr(solution, fct)(*args)
 
 
 def test_init_solution():
@@ -178,4 +169,18 @@ def test_init_solution():
     mock_simulator.update_results.assert_called_once_with(
         prefetched_data,
         inline=True,
+    )
+
+
+def test_status():
+    """
+    Test case for various dict functions for solutions with uninitialised solutions (so initialising first)
+    """
+    mock_simulator = mock.MagicMock()
+    prefetched_data = mock.Mock()
+
+    solution = Solution(sim=mock_simulator, prefetched_data=prefetched_data)
+    assert solution.status == mock_simulator.get_status.return_value
+    mock_simulator.get_status.assert_called_once_with(
+        prefetched_data
     )
