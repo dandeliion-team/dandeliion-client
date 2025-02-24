@@ -26,6 +26,7 @@ Module containing class for handling access to solutions
 import logging
 import copy
 from typing import Protocol, Optional
+from collections.abc import Mapping
 
 # custom modules
 from .exceptions import DandeliionAPIException
@@ -66,7 +67,7 @@ class InterpolatedArray(np.ndarray):
         return np.interp(t, self.t, self)
 
 
-class Solution:
+class Solution(Mapping):
     """Dictionary-style class for the solutions of a simulation run
     returned by :meth:`solve`
     """
@@ -127,52 +128,16 @@ class Solution:
         else:
             return copy.deepcopy(self._data['Solution'][key])
 
+    def __len__(self):
+        if self._data.get('Solution', None) is None:
+            self._init_solution()
+        return len(self._data['Solution'])
+
+    def __iter__(self):
+        if self._data.get('Solution', None) is None:
+            self._init_solution()
+        yield from self._data['Solution']
+
     @property
     def status(self):
         return self._sim.get_status(self._data)
-
-    def __setitem__(self, key: str, value):
-        raise NotImplementedError("This is a read-only dictionary")
-
-    def __len__(self):
-        return len(self.keys())
-
-    def __delitem__(self, key):
-        raise NotImplementedError("This is a read-only dictionary")
-
-    def clear(self):
-        raise NotImplementedError("This is a read-only dictionary")
-
-    def copy(self):
-        return self  # nothing to do since read-only anyways
-
-    def has_key(self, k):
-        return k in self.keys()
-
-    def update(self, *args, **kwargs):
-        raise NotImplementedError("This is a read-only dictionary")
-
-    def keys(self):
-        if self._data.get('Solution', None) is None:
-            self._init_solution()
-        return self._data['Solution'].keys()
-
-    def values(self):
-        if self._data.get('Solution', None) is None:
-            self._init_solution()
-        return self._data['Solution'].values()
-
-    def items(self):
-        if self._data.get('Solution', None) is None:
-            self._init_solution()
-        return self._data['Solution'].items()
-
-    def pop(self, *args):
-        raise NotImplementedError("This is a read-only dictionary")
-
-    def __contains__(self, item):
-        return item in self.items()
-
-    def __iter__(self):
-        for key in self.keys():
-            yield key
