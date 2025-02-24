@@ -129,15 +129,30 @@ class Solution(Mapping):
             return copy.deepcopy(self._data['Solution'][key])
 
     def __len__(self):
+        """Returns the number of fields in the solutions.
+
+        Returns:
+            int: number of fields
+        """
         if self._data.get('Solution', None) is None:
             self._init_solution()
         return len(self._data['Solution'])
 
     def __iter__(self):
+        """Returns an iterator on the solutions fields.
+
+        Returns:
+            iterator
+        """
         if self._data.get('Solution', None) is None:
             self._init_solution()
         yield from self._data['Solution']
 
     @property
     def status(self):
+        """Returns the status of the simulation run linked to this solutions
+
+        Returns:
+            str: current status of simulation run ('queued', 'running', 'failed', 'success')
+        """
         return self._sim.get_status(self._data)

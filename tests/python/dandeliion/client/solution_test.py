@@ -120,7 +120,7 @@ def test_access_non_existent_data_column():
         solution[field]
 
 
-@pytest.mark.parametrize("fct,args", [('keys', []), ('items', []), ('values', []), ])
+@pytest.mark.parametrize("fct,args", [('keys', []), ('items', []), ('values', []),  ('__iter__', []), ])
 @mock.patch('dandeliion.client.solution.Solution._init_solution')
 def test_dict_functions(mock_init, fct, args):
     """
@@ -137,7 +137,7 @@ def test_dict_functions(mock_init, fct, args):
     mock_init.assert_not_called()
 
 
-@pytest.mark.parametrize("fct,args", [('keys', []), ('items', []), ('values', []), ])
+@pytest.mark.parametrize("fct,args", [('keys', []), ('items', []), ('values', []),  ('__iter__', []),])
 @mock.patch('dandeliion.client.solution.Solution._init_solution')
 def test_dict_functions_with_init(mock_init, fct, args):
     """
@@ -172,7 +172,7 @@ def test_init_solution():
     )
 
 
-def test_init_solution():
+def test_status():
     """
     Test case for various dict functions for solutions with uninitialised solutions (so initialising first)
     """
