@@ -13,13 +13,12 @@ import os
 import sys
 sys.path.insert(0, os.path.abspath('..'))
 
-
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
-project = 'Dandeliion Client'
-copyright = '2024, Dandeliion Team'
-author = 'Dandeliion Team'
+project = 'DandeLiion Client'
+copyright = '2024-2025, DandeLiion Team'
+author = 'DandeLiion Team'
 release = '0.3.0'
 
 # -- General configuration ---------------------------------------------------
@@ -34,8 +33,6 @@ extensions = [
 
 templates_path = ['_templates']
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
-
-
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
