@@ -67,10 +67,12 @@ class Simulator:
             cond = threading.Condition()
 
             def task_update_signal_hook(updates):
+                logger.debug(f'update_signal_hook triggered with: {updates}')
                 with cond:
                     data['Run']['status'] = updates['status']
                     logger.info(updates['log_message'])
                     cond.notify_all()
+                    logger.debug('all notified')
 
             client = SimulatorWebSocketClient(
                 url=data['Run']['ws_status_url'],
