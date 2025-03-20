@@ -103,7 +103,7 @@ def test_access_non_prefetched_data_column():
 
     solution = Solution(sim=mock_simulator, prefetched_data=prefetched_data)
     data = solution[field]
-    assert data == solution_data[field]
+    assert np.array_equal(data, solution_data[field])
 
 
 def test_access_non_existent_data_column():
@@ -132,8 +132,18 @@ def test_dict_functions(mock_init, fct, args):
 
     solution = Solution(sim=mock_simulator, prefetched_data=prefetched_data)
     mock_init.assert_not_called()
-    print(getattr(solution, fct)(*args))
-    assert list(getattr(prefetched_data['Solution'], fct)(*args)) == list(getattr(solution, fct)(*args))
+    if fct == 'values':
+        assert np.all([np.array_equal(x, y) for x, y in zip(
+            list(getattr(prefetched_data['Solution'], fct)(*args)),
+            list(getattr(solution, fct)(*args)),
+        )])
+    elif fct == 'items':
+        assert np.all([np.array_equal(x, y) and k1 == k2 for (k1, x), (k2, y) in zip(
+            list(getattr(prefetched_data['Solution'], fct)(*args)),
+            list(getattr(solution, fct)(*args)),
+        )])
+    else:
+        assert list(getattr(prefetched_data['Solution'], fct)(*args)) == list(getattr(solution, fct)(*args))
     mock_init.assert_not_called()
 
 

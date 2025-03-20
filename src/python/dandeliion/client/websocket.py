@@ -39,7 +39,7 @@ class SimulatorWebSocketClient:
         server_url, self.namespace = url
         self._app = socketio.Client()
         self._app.connect(server_url, auth=api_key, namespaces=[self.namespace])
-        self._app.on('update', namespace=self.namespace)(on_update)
+        self._app.on(event='update', handler=on_update, namespace=self.namespace)
 
     def subscribe(self, id):
         self._app.emit('subscribe', id, namespace=self.namespace)

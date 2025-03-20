@@ -126,7 +126,7 @@ class Solution(Mapping):
         if self._time_column:
             return InterpolatedArray(t=self._data['Solution'][self._time_column], y=self._data['Solution'][key])
         else:
-            return copy.deepcopy(self._data['Solution'][key])
+            return np.array(copy.deepcopy(self._data['Solution'][key]))
 
     def __len__(self):
         """Returns the number of fields in the solutions.
