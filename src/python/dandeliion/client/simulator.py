@@ -86,7 +86,7 @@ class Simulator:
             # closing connection again
             client.close()
 
-        return Solution(self, data)
+        return Solution(self, data, time_column='Time [s]')
 
     def update_results(self, prefetched_data: dict, keys: list = None, inline: bool = False) -> Optional[dict]:
         """
