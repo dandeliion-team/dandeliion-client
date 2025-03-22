@@ -103,10 +103,9 @@ def test_submit_blocking(mock_post, mock_wsclient, input_extended_bpx, caplog):
     # check that ws client was initialised correctly
     mock_wsclient.assert_called_once_with(
         url=mock_server_return['Run']['ws_status_url'],
-        api_key=mock_api_key,
         on_update=mock.ANY,
     )
-    mock_wsclient.return_value.subscribe.assert_called_once_with(mock_server_return['Run']['id'])
+    mock_wsclient.return_value.subscribe.assert_called_once_with(mock_server_return['Run']['id'], mock.Mock())
     # check if hook works as required (i.e. it updates the response_json and logs messages)
     assert mock_server_return['Run']['status'] == 'success'
     with caplog.at_level(logging.INFO):
