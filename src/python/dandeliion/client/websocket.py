@@ -35,14 +35,14 @@ logger = logging.getLogger(__name__)
 
 class SimulatorWebSocketClient:
 
-    def __init__(self, url: tuple[str, str], api_key: str, on_update: Callable[[Any], None]):
+    def __init__(self, url: tuple[str, str], on_update: Callable[[Any], None]):
         server_url, self.namespace = url
         self._app = socketio.Client()
-        self._app.connect(server_url, auth=api_key, namespaces=[self.namespace])
+        self._app.connect(server_url, namespaces=[self.namespace])
         self._app.on(event='update', handler=on_update, namespace=self.namespace)
 
-    def subscribe(self, id):
-        self._app.emit('subscribe', id, namespace=self.namespace)
+    def subscribe(self, id, api_key: str):
+        self._app.emit('subscribe', (id, api_key), namespace=self.namespace)
 
     def close(self):
         self._app.shutdown()
