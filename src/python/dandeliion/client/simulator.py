@@ -67,17 +67,18 @@ class Simulator:
             cond = threading.Condition()
 
             def task_update_signal_hook(updates):
+                logger.debug(f'update_signal_hook triggered with: {updates}')
                 with cond:
                     data['Run']['status'] = updates['status']
                     logger.info(updates['log_message'])
                     cond.notify_all()
+                    logger.debug('all notified')
 
             client = SimulatorWebSocketClient(
                 url=data['Run']['ws_status_url'],
-                api_key=self.api_key,
                 on_update=task_update_signal_hook,
             )
-            client.subscribe(run_id)
+            client.subscribe(run_id, self.api_key)
             while data['Run']['status'] in ['queued', 'running']:
                 # block until task update signalled
                 with cond:
@@ -85,7 +86,7 @@ class Simulator:
             # closing connection again
             client.close()
 
-        return Solution(self, data)
+        return Solution(self, data, time_column='Time [s]')
 
     def update_results(self, prefetched_data: dict, keys: list = None, inline: bool = False) -> Optional[dict]:
         """
