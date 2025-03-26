@@ -76,10 +76,9 @@ class Simulator:
 
             client = SimulatorWebSocketClient(
                 url=data['Run']['ws_status_url'],
-                api_key=self.api_key,
                 on_update=task_update_signal_hook,
             )
-            client.subscribe(run_id)
+            client.subscribe(run_id, self.api_key)
             while data['Run']['status'] in ['queued', 'running']:
                 # block until task update signalled
                 with cond:

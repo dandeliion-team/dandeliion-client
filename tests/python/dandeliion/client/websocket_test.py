@@ -42,13 +42,11 @@ def test_client_creation(mock_wsc):
 
     client = websocket.SimulatorWebSocketClient(
         url=url,
-        api_key=api_key,
         on_update=on_update,
     )
 
     mock_wsc.return_value.connect.assert_called_once_with(
         url[0],
-        auth=api_key,
         namespaces=[url[1]],
     )
     mock_wsc.return_value.on('update', namespace=url[1])(on_update)
@@ -65,13 +63,12 @@ def test_client_subscribe(mock_wsc):
 
     client = websocket.SimulatorWebSocketClient(
         url=url,
-        api_key=api_key,
         on_update=on_update,
     )
 
     run_id = mock.Mock()
-    client.subscribe(run_id)
-    mock_wsc.return_value.emit.assert_called_once_with('subscribe', run_id, namespace=url[1])
+    client.subscribe(run_id, api_key)
+    mock_wsc.return_value.emit.assert_called_once_with('subscribe', (run_id, api_key), namespace=url[1])
 
 
 @mock.patch('dandeliion.client.websocket.socketio.Client')
@@ -83,7 +80,6 @@ def test_client_close(mock_wsc):
 
     client = websocket.SimulatorWebSocketClient(
         url=url,
-        api_key=api_key,
         on_update=on_update,
     )
 
