@@ -156,3 +156,20 @@ class Solution(Mapping):
             str: current status of simulation run ('queued', 'running', 'failed', 'success')
         """
         return self._sim.get_status(self._data)
+
+
+    @property
+    def log_file(self):
+        """Returns the backend log file produced by the dandeliions-model code 
+
+        Returns:
+            str: contents of log file (default_log.txt)
+            TODO: test if log file is output if no solution is written due to an error being encountered
+        """
+
+        # remove final line from default_log.txt because messages are still being logged after default_log.txt is written, preserving internal '\n'
+        self._data['log_file'] = self._data['log_file'].rsplit('\n', 1)[0]
+        print(self._data['log_file'])
+
+        return self._data['log_file']
+    
