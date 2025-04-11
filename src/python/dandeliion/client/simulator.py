@@ -70,7 +70,11 @@ class Simulator:
                 logger.debug(f'update_signal_hook triggered with: {updates}')
                 with cond:
                     data['Run']['status'] = updates['status']
-                    logger.info(updates['log_message'])
+                    data['runtime_log'] = updates['runtime_log']
+                    data['async_log'] = updates['async_log']
+                    logger.info(updates['status'])
+                    logger.info(updates['runtime_log'])
+
                     cond.notify_all()
                     logger.debug('all notified')
 
@@ -122,3 +126,5 @@ class Simulator:
         if prefetched_data['Run']['status'] in ['queued', 'running']:
             self.update_results(prefetched_data, inline=True)
         return prefetched_data['Run']['status']
+
+    

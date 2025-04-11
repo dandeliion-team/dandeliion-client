@@ -159,17 +159,15 @@ class Solution(Mapping):
 
 
     @property
-    def log_file(self):
-        """Returns the backend log file produced by the dandeliions-model code 
+    def logs(self):
+        """Returns both the log files produced by the backend
 
         Returns:
-            str: contents of log file (default_log.txt)
-            TODO: test if log file is output if no solution is written due to an error being encountered
+            str: contents of log files (runtime_log.txt and log.txt)
         """
 
-        # remove final line from default_log.txt because messages are still being logged after default_log.txt is written, preserving internal '\n'
-        self._data['log_file'] = self._data['log_file'].rsplit('\n', 1)[0]
-        print(self._data['log_file'])
-
-        return self._data['log_file']
+        return {'runtime_log':self._data['runtime_log'], 
+                'async_log':self._data['async_log']
+        }
     
+   
