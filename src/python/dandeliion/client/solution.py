@@ -157,7 +157,6 @@ class Solution(Mapping):
         """
         return self._sim.get_status(self._data)
 
-
     @property
     def logs(self):
         """Returns both the log files produced by the backend
@@ -166,8 +165,6 @@ class Solution(Mapping):
             str: contents of log files (runtime_log.txt and log.txt)
         """
 
-        return {'runtime_log':self._data['runtime_log'], 
-                'async_log':self._data['async_log']
-        }
-    
-   
+        return {'runtime_log': self._data['runtime_log'],
+                'async_log': self._data['async_log']
+                }

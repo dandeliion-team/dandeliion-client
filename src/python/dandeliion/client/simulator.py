@@ -126,5 +126,3 @@ class Simulator:
         if prefetched_data['Run']['status'] in ['queued', 'running']:
             self.update_results(prefetched_data, inline=True)
         return prefetched_data['Run']['status']
-
-    
