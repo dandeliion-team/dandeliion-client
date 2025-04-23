@@ -139,3 +139,4 @@ class Simulator:
             raise DandeliionAPIException(f"Error code {response.status_code}. Failed to fetch logs: {response.reason}")
 
         return response.text
+        

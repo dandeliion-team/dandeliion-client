@@ -45,6 +45,7 @@ class Simulator(Protocol):
     def get_status(self, prefetched_data: dict) -> str: ...
     def get_logs(self, prefetched_data: dict) -> str: ...
 
+
 class InterpolatedArray(np.ndarray):
     """
     Subclass of ndarray providing function call for linear interpolation
