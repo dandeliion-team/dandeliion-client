@@ -159,11 +159,11 @@ class Solution(Mapping):
         return self._sim.get_status(self._data)
 
     @property
-    def logs(self):
-        """Returns both the log files produced by the backend
+    def log(self):
+        """Returns the log file produced by the backend
 
         Returns:
-            str: contents of log files (runtime_log.txt and log.txt)
+            str: contents of log file (runtime_log.txt)
         """
 
         return self._sim.get_logs(self._data)
