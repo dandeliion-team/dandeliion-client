@@ -70,10 +70,9 @@ class Simulator:
                 logger.debug(f'update_signal_hook triggered with: {updates}')
                 with cond:
                     data['Run']['status'] = updates['status']
-                    data['runtime_log'] = updates['runtime_log']
-                    data['async_log'] = updates['async_log']
+                    data['log_update'] = updates['log_update']
                     logger.info(updates['status'])
-                    logger.info(updates['runtime_log'])
+                    logger.info(updates['log_update'])
 
                     cond.notify_all()
                     logger.debug('all notified')
@@ -126,3 +125,17 @@ class Simulator:
         if prefetched_data['Run']['status'] in ['queued', 'running']:
             self.update_results(prefetched_data, inline=True)
         return prefetched_data['Run']['status']
+
+    def get_logs(self, prefetched_data: dict) -> str:
+        """
+        Returns log file
+        """
+        headers = {'Authorization': f'Token {self.api_key}'}
+        params = []
+        params.append(('id', prefetched_data['Run']['id']))
+        response = requests.get(f"{self.api_url}/logs", params=params, headers=headers)
+
+        if response.status_code >= 400:
+            raise DandeliionAPIException(f"Error code {response.status_code}. Failed to fetch logs: {response.reason}")
+
+        return response.text

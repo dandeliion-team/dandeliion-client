@@ -43,7 +43,7 @@ class Simulator(Protocol):
     """ Simulator Protocol """
     def update_results(self, prefetched_data: dict, keys: list = None, inline: bool = False) -> Optional[dict]: ...
     def get_status(self, prefetched_data: dict) -> str: ...
-
+    def get_logs(self, prefetched_data: dict) -> str: ...
 
 class InterpolatedArray(np.ndarray):
     """
@@ -165,6 +165,4 @@ class Solution(Mapping):
             str: contents of log files (runtime_log.txt and log.txt)
         """
 
-        return {'runtime_log': self._data['runtime_log'],
-                'async_log': self._data['async_log']
-                }
+        return self._sim.get_logs(self._data)
