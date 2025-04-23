@@ -109,7 +109,7 @@ def test_submit_blocking(mock_post, mock_wsclient, input_extended_bpx, caplog):
     # check if hook works as required (i.e. it updates the response_json and logs messages)
     assert mock_server_return['Run']['status'] == 'success'
     with caplog.at_level(logging.INFO):
-        mock_wsclient.call_args[1]['on_update'](updates={'status': 'queued', 'runtime_log': 'some log message', 'async_log': 'some other log message'})
+        mock_wsclient.call_args[1]['on_update'](updates={'status': 'queued', 'log_update': 'some log message'})
     assert mock_server_return['Run']['status'] == 'queued'
     assert 'some log message' in caplog.text
     
