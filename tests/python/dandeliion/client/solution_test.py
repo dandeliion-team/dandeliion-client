@@ -194,3 +194,17 @@ def test_status():
     mock_simulator.get_status.assert_called_once_with(
         prefetched_data
     )
+
+
+def test_log():
+    """
+    Test case for accessing the log property of a solution instance.
+    """
+    mock_simulator = mock.MagicMock()
+    prefetched_data = mock.Mock()
+
+    solution = Solution(sim=mock_simulator, prefetched_data=prefetched_data)
+    assert solution.log == mock_simulator.get_log.return_value
+    mock_simulator.get_log.assert_called_once_with(
+        prefetched_data
+    )

@@ -106,7 +106,7 @@ def test_submit_blocking(mock_post, mock_wsclient, input_extended_bpx, caplog):
         on_update=mock.ANY,
     )
     mock_wsclient.return_value.subscribe.assert_called_once_with(mock_server_return['Run']['id'], mock_api_key)
-    # check if hook works as required (i.e. it updates the response_json and logs messages)
+    # check if hook works as required (i.e. it updates the response_json and log messages)
     assert mock_server_return['Run']['status'] == 'success'
     with caplog.at_level(logging.INFO):
         mock_wsclient.call_args[1]['on_update'](updates={'status': 'queued', 'log_update': 'some log message'})
@@ -291,3 +291,82 @@ def test_get_status_when_running(mock_update, status):
         prefetched_data,
         inline=True,
     )
+
+
+@mock.patch('dandeliion.client.simulator.requests.get')
+def test_get_log_success(mock_get):
+    """
+    Test case for getting log
+    """
+    mock_api_key = mock.Mock()
+    mock_url = mock.Mock()
+    prefetched_data = {'Run': {'id': 42}}
+    expected_log = 'some log content'
+
+    mock_get.return_value = mock.Mock(status_code=200, text=expected_log)
+
+    simulator = Simulator(api_url=mock_url, api_key=mock_api_key)
+    log = simulator.get_log(prefetched_data)
+
+    mock_get.assert_called_once_with(
+        f'{mock_url}/log',
+        params=[('id', 42)],
+        headers={'Authorization': f'Token {mock_api_key}'}
+    )
+    assert log == expected_log
+
+@mock.patch('dandeliion.client.simulator.requests.get')
+def test_get_log_empty_response(mock_get):
+    """
+    Test case for getting log where log file does not yet exist (returns an empty string)
+    """
+    mock_api_key = mock.Mock()
+    mock_url = mock.Mock()
+    prefetched_data = {'Run': {'id': 42}}
+
+    mock_get.return_value = mock.Mock(status_code=200, text='')
+
+    simulator = Simulator(api_url=mock_url, api_key=mock_api_key)
+    log = simulator.get_log(prefetched_data)
+
+    mock_get.assert_called_once_with(
+        f'{mock_url}/log',
+        params=[('id', 42)],
+        headers={'Authorization': f'Token {mock_api_key}'}
+    )
+    assert log == ''
+
+
+@mock.patch('dandeliion.client.simulator.requests.get')
+def test_get_log_server_error(mock_get):
+    """
+    Test case for an error response getting log
+    """
+    mock_api_key = mock.Mock()
+    mock_url = mock.Mock()
+    prefetched_data = {'Run': {'id': 42}}
+
+    mock_get.return_value = mock.Mock(status_code=404, reason='Not Found')
+
+    simulator = Simulator(api_url=mock_url, api_key=mock_api_key)
+
+    with pytest.raises(DandeliionAPIException) as e:
+        simulator.get_log(prefetched_data)
+
+    mock_get.assert_called_once_with(
+        f'{mock_url}/log',
+        params=[('id', 42)],
+        headers={'Authorization': f'Token {mock_api_key}'}
+    )
+    assert 'Error code 404' in str(e.value)
+
+
+def test_get_log_missing_id():
+    """
+    Test case for trying to get log with missing run id
+    """
+    simulator = Simulator(api_url='http://url', api_key='key')
+    prefetched_data = {}  # no 'Run'
+
+    with pytest.raises(KeyError):
+        simulator.get_log(prefetched_data)
