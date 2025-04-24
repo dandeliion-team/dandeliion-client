@@ -126,16 +126,16 @@ class Simulator:
             self.update_results(prefetched_data, inline=True)
         return prefetched_data['Run']['status']
 
-    def get_logs(self, prefetched_data: dict) -> str:
+    def get_log(self, prefetched_data: dict) -> str:
         """
         Returns log file
         """
         headers = {'Authorization': f'Token {self.api_key}'}
         params = []
         params.append(('id', prefetched_data['Run']['id']))
-        response = requests.get(f"{self.api_url}/logs", params=params, headers=headers)
+        response = requests.get(f"{self.api_url}/log", params=params, headers=headers)
 
         if response.status_code >= 400:
-            raise DandeliionAPIException(f"Error code {response.status_code}. Failed to fetch logs: {response.reason}")
+            raise DandeliionAPIException(f"Error code {response.status_code}. Failed to fetch log: {response.reason}")
 
         return response.text
