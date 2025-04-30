@@ -12,7 +12,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
-- Fixed bug where solution.status was stuck on `queued` instead of `failed` when the solver failed.
+- Fixed bug where `solution.status` was stuck on `queued` instead of `failed` when the solver failed.
 
 ### Changed
 
