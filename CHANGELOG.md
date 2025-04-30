@@ -9,6 +9,7 @@ All notable changes to this project will be documented in this file.
 
 - Added `solution.log` property.
 - Added unit tests for `simulator.get_log` function and `solution.log` property
+- Added __version__ definition 
 
 ### Fixed
 
