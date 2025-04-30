@@ -57,7 +57,7 @@ class Simulator:
         headers = {'Authorization': f'Token {self.api_key}'}  # TODO adapt to server
         response = requests.post(url=self.api_url, json=parameters, headers=headers)
         if response.status_code >= 400:
-            raise DandeliionAPIException(f"Your request has failed: {response.reason}")
+            raise DandeliionAPIException(f"Your request has failed: {response.reason} ({response.status_code})")
         response_json = response.json()
 
         run_id = response_json['Run']['id']
@@ -71,8 +71,7 @@ class Simulator:
                 with cond:
                     data['Run']['status'] = updates['status']
                     data['log_update'] = updates['log_update']
-                    logger.info(updates['status'])
-                    logger.info(updates['log_update'])
+                    logger.info(f"[{updates['status']}] | {updates['log_update']}")
 
                     cond.notify_all()
                     logger.debug('all notified')
@@ -101,7 +100,7 @@ class Simulator:
         headers = {'Authorization': f'Token {self.api_key}'}  # TODO adapt to server
         response = requests.get(url=self.api_url, params=params, headers=headers)
         if response.status_code >= 400:
-            raise DandeliionAPIException(f"Your request has failed: {response.reason}. Try again?")
+            raise DandeliionAPIException(f"Your request has failed: {response.reason} ({response.status_code}). Try again?")
 
         response_json = response.json()
         # sanity check if id for sim returned is same as the one requested
