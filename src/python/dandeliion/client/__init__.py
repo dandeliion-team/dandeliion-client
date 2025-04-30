@@ -12,6 +12,7 @@ from bpx import parse_bpx_obj, parse_bpx_file, BPX
 
 __version__ = "1.0.0rc2"
 
+
 def _convert_experiment(experiment: Experiment):
     """
     converts pybamm experiment into dict
