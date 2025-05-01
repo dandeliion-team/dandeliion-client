@@ -1,32 +1,29 @@
-Changelog for DandeLiion client
 
-Changes in v0.1
-=========================
+# Changelog
 
-API Changes
------------
+All notable changes to this project will be documented in this file.
 
+## [1.0.0rc2]
 
-Dependency Changes
-------------------
+### Added
 
+- Added `solution.log` property.
+- Added unit tests for `simulator.get_log` function and `solution.log` property
+- Added __version__ definition 
 
-Deprecated Features
--------------------
+### Fixed
 
+- Fixed bug where `solution.status` was stuck on `queued` instead of `failed` when the solver failed.
 
-Bug Fixes
----------
+### Changed
 
+- Status update now returns status + most recent line from logs.
+- Jupyter notebooks show output from `solution.log`.
 
-New Features
-------------
+### Removed
 
+- 
 
-New Config Features
--------------------
+## [1.0.0rc1]
 
-
-Miscellaneous
--------------
-
+First beta version.
