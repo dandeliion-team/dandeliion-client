@@ -43,6 +43,7 @@ class Simulator(Protocol):
     """ Simulator Protocol """
     def update_results(self, prefetched_data: dict, keys: list = None, inline: bool = False) -> Optional[dict]: ...
     def get_status(self, prefetched_data: dict) -> str: ...
+    def get_log(self, prefetched_data: dict) -> str: ...
 
 
 class InterpolatedArray(np.ndarray):
@@ -156,3 +157,13 @@ class Solution(Mapping):
             str: current status of simulation run ('queued', 'running', 'failed', 'success')
         """
         return self._sim.get_status(self._data)
+
+    @property
+    def log(self):
+        """Returns the log file produced by the backend
+
+        Returns:
+            str: contents of log file (runtime_log.txt)
+        """
+
+        return self._sim.get_log(self._data)
