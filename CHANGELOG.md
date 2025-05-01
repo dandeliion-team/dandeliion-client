@@ -3,6 +3,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.0rc3]
+
+### Added
+
+-
+
+### Fixed
+
+-
+
+### Changed
+
+-
+
+### Removed
+
+-
+
 ## [1.0.0rc2]
 
 ### Added
