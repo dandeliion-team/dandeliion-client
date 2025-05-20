@@ -15,7 +15,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
--
+- Changed pinned version of Pybamm in pyproject.toml from 25.1.1 to 25.4.2
 
 ### Removed
 
