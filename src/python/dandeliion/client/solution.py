@@ -167,3 +167,8 @@ class Solution(Mapping):
         """
 
         return self._sim.get_log(self._data)
+
+    def join(self):
+        """Blocks until solution is available (i.e. simulation is done)
+        """
+        self._sim._join(self._data)

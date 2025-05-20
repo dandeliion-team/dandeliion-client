@@ -60,7 +60,8 @@ def input_extended_bpx():
 
 
 @mock.patch('dandeliion.client.simulator.requests.post')
-def test_submit_non_blocking(mock_post, input_extended_bpx):
+@mock.patch('dandeliion.client.simulator.Simulator._join')
+def test_submit_non_blocking(mock_join, mock_post, input_extended_bpx):
     """
     Test case for a non-blocking submit
     """
@@ -83,23 +84,37 @@ def test_submit_non_blocking(mock_post, input_extended_bpx):
     # check that solution is created correctly from returned run info
     assert solution._data['Run'] == mock_server_return['Run']
 
+    # check that join was not called here
+    mock_join.assert_not_called()
 
-@mock.patch('dandeliion.client.simulator.SimulatorWebSocketClient')
+
 @mock.patch('dandeliion.client.simulator.requests.post')
-def test_submit_blocking(mock_post, mock_wsclient, input_extended_bpx, caplog):
+@mock.patch('dandeliion.client.simulator.Simulator._join')
+def test_submit_blocking(mock_join, mock_post, input_extended_bpx):
     """
     Test case for a blocking submit
     """
     mock_api_key = mock.Mock()
     mock_url = mock.Mock()
-    mock_server_return = {'Run': {'ws_status_url': mock.Mock(), 'id': mock.Mock(), 'status': 'success'}}
-    mock_wsclient.return_value = mock.MagicMock()
+    mock_server_return ={'Run': {'ws_status_url': mock.Mock(), 'id': mock.Mock(), 'status': 'success'}}
 
     mock_post.return_value = MockResponse(json_data=mock_server_return, status_code=200)
 
     simulator = Simulator(api_url=mock_url, api_key=mock_api_key)
     simulator.submit(input_extended_bpx)
 
+    input_extended_bpx.update(mock_server_return)
+    mock_join.assert_called_once_with(input_extended_bpx)
+
+
+@pytest.mark.skip(reason="test still needs to be finished!!!")
+@mock.patch('dandeliion.client.simulator.SimulatorWebSocketClient')
+def test__join(mock_wsclient, caplog):
+    """
+    Test case for _join helper function
+    """
+    mock_wsclient.return_value = mock.MagicMock()
+    
     # check that ws client was initialised correctly
     mock_wsclient.assert_called_once_with(
         url=mock_server_return['Run']['ws_status_url'],

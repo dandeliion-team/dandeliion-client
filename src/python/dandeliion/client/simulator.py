@@ -59,36 +59,44 @@ class Simulator:
         if response.status_code >= 400:
             raise DandeliionAPIException(f"Your request has failed: {response.reason}")
         response_json = response.json()
-
-        run_id = response_json['Run']['id']
         data = update_dict(parameters, response_json, inline=False)
 
+        solution = Solution(self, data, time_column='Time [s]')
         if is_blocking:
-            cond = threading.Condition()
+            solution.join()
 
-            def task_update_signal_hook(updates):
-                logger.debug(f'update_signal_hook triggered with: {updates}')
-                with cond:
-                    data['Run']['status'] = updates['status']
-                    data['log_update'] = updates['log_update']
-                    logger.info(f"[{updates['status']}] | {updates['log_update']}")
+        return solution
 
-                    cond.notify_all()
-                    logger.debug('all notified')
+    def _join(self, prefetched_data: dict):
+        """ blocks until simulation found in prefetched (meta)data is finished
+        """
+        if prefetched_data['Run']['status'] not in ['queued', 'running']:
+            return
 
-            client = SimulatorWebSocketClient(
-                url=data['Run']['ws_status_url'],
-                on_update=task_update_signal_hook,
-            )
-            client.subscribe(run_id, self.api_key)
-            while data['Run']['status'] in ['queued', 'running']:
-                # block until task update signalled
-                with cond:
-                    cond.wait()
-            # closing connection again
-            client.close()
+        cond = threading.Condition()
 
-        return Solution(self, data, time_column='Time [s]')
+        def task_update_signal_hook(updates):
+            logger.debug(f'update_signal_hook triggered with: {updates}')
+            with cond:
+                prefetched_data['Run']['status'] = updates['status']
+                prefetched_data['log_update'] = updates['log_update']
+                logger.info(f"[{updates['status']}] | {updates['log_update']}")
+
+                cond.notify_all()
+                logger.debug('all notified')
+
+        client = SimulatorWebSocketClient(
+            url=prefetched_data['Run']['ws_status_url'],
+            on_update=task_update_signal_hook,
+        )
+        run_id = prefetched_data['Run']['id']
+        client.subscribe(run_id, self.api_key)
+        while prefetched_data['Run']['status'] in ['queued', 'running']:
+            # block until task update signalled
+            with cond:
+                cond.wait()
+        # closing connection again
+        client.close()
 
     def update_results(self, prefetched_data: dict, keys: list = None, inline: bool = False) -> Optional[dict]:
         """

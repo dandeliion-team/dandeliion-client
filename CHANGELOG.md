@@ -7,7 +7,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
--
+- `join()` function for solutions to wait for solutions to be ready (in non-blocking mode)
 
 ### Fixed
 
