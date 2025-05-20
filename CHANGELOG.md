@@ -16,6 +16,7 @@ All notable changes to this project will be documented in this file.
 ### Changed
 
 - final logs not stored client-side once fetched once to avoid unnecessary fetching
+- Changed pinned version of Pybamm in pyproject.toml from 25.1.1 to 25.4.2
 
 ### Removed
 
