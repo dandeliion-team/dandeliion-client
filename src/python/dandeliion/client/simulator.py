@@ -27,7 +27,8 @@ import logging
 import requests
 import threading
 from dataclasses import dataclass
-from typing import Optional
+from pathlib import Path
+from typing import Optional, Union
 
 # custom modules
 from .tools.misc import update_dict
@@ -88,7 +89,7 @@ class Simulator:
             # closing connection again
             client.close()
 
-        return Solution(self, data, time_column='Time [s]')
+        return Solution(sim=self, prefetched_data=data, time_column='Time [s]')
 
     def update_results(self, prefetched_data: dict, keys: list = None, inline: bool = False) -> Optional[dict]:
         """
@@ -97,7 +98,7 @@ class Simulator:
         params = [('key', key) for key in keys] if keys is not None else []
         params.append(('id', prefetched_data['Run']['id']))
 
-        headers = {'Authorization': f'Token {self.api_key}'}  # TODO adapt to server
+        headers = {'Authorization': f'Token {self.api_key}'}
         response = requests.get(url=self.api_url, params=params, headers=headers)
         if response.status_code >= 400:
             raise DandeliionAPIException(f"Your request has failed: {response.reason}. Try again?")
@@ -132,9 +133,36 @@ class Simulator:
         headers = {'Authorization': f'Token {self.api_key}'}
         params = []
         params.append(('id', prefetched_data['Run']['id']))
-        response = requests.get(f"{self.api_url}/log", params=params, headers=headers)
 
-        if response.status_code >= 400:
-            raise DandeliionAPIException(f"Error code {response.status_code}. Failed to fetch log: {response.reason}")
+        # fetch log if not done so yet; refetch it if simulation is not finished yet
+        if (prefetched_data['Run']['status'] in ['queued', 'running'] or 'Log' not in prefetched_data):
+            response = requests.get(f"{self.api_url}/log", params=params, headers=headers)
 
-        return response.text
+            if response.status_code >= 400:
+                raise DandeliionAPIException(
+                    f"Error code {response.status_code}. Failed to fetch log: {response.reason}"
+                )
+
+        # not buffering log; will change anyway; just return response
+        if prefetched_data['Run']['status'] in ['queued', 'running']:
+            return response.text
+
+        # store final version of log in buffer if not exists yet
+        if 'Log' not in prefetched_data:
+            prefetched_data['Log'] = response.text
+
+        return prefetched_data['Log']
+
+    @classmethod
+    def restore(cls, filepath: Union[str, Path], api_url=None, api_key=None):
+        """Loads prefetched/solution data and creates new solution object.
+        If api url/key provided (optional), it will also try to connect to server for updates
+        for this simulation (e.g. if stored before finished)
+
+        Args:
+           filepath (str | Path): path to file were data should be loaded from
+           api_url (str): url to server where simulation was run
+           api_key (str): api key used to run this simulation
+        """
+        sim = cls(api_url=api_url, api_key=api_key)
+        return Solution(sim=sim, prefetched_data=filepath, time_column='Time [s]')
