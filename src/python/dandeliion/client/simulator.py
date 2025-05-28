@@ -57,7 +57,15 @@ class Simulator:
         headers = {'Authorization': f'Token {self.api_key}'}  # TODO adapt to server
         response = requests.post(url=self.api_url, json=parameters, headers=headers)
         if response.status_code >= 400:
-            raise DandeliionAPIException(f"Your request has failed: {response.reason}")
+            try:
+       # Try to parse a JSON error message
+                error_detail = response.json().get("error", response.text)
+            except ValueError:
+        # If response is not JSON, fall back to raw text
+                error_detail = response.text or response.reason
+            raise DandeliionAPIException(
+        f"Your request has failed: {response.status_code} - {error_detail}"
+    )
         response_json = response.json()
 
         run_id = response_json['Run']['id']
