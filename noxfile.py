@@ -3,7 +3,7 @@ import nox
 
 @nox.session
 def tests(session):
-    session.install('pytest', '.')
+    session.install('.[dev]')
     session.run('pytest')
     # Here we queue up the test coverage session to run next
     session.notify("coverage")

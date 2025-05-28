@@ -123,6 +123,7 @@ class MockWSClient:
         pass
 
 
+@pytest.mark.timeout(60)  # prevents test from just getting stuck if update fails
 @mock.patch('dandeliion.client.simulator.SimulatorWebSocketClient', MockWSClient)
 def test__join(caplog):
     """
