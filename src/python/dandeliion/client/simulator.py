@@ -91,9 +91,9 @@ class Simulator:
         )
         run_id = prefetched_data['Run']['id']
         client.subscribe(run_id, self.api_key)
-        while prefetched_data['Run']['status'] in ['queued', 'running']:
-            # block until task update signalled
-            with cond:
+        with cond:
+            while prefetched_data['Run']['status'] in ['queued', 'running']:
+                # block until task update signalled
                 cond.wait()
         # closing connection again
         client.close()

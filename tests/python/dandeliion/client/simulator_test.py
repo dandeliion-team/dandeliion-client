@@ -107,27 +107,50 @@ def test_submit_blocking(mock_join, mock_post, input_extended_bpx):
     mock_join.assert_called_once_with(input_extended_bpx)
 
 
-@pytest.mark.skip(reason="test still needs to be finished!!!")
-@mock.patch('dandeliion.client.simulator.SimulatorWebSocketClient')
-def test__join(mock_wsclient, caplog):
+class MockWSClient:
+    def __init__(self, url, on_update):
+        self.on_update = on_update
+
+    def subscribe(self, run_id, api_key):
+        import threading
+        threading.Timer(
+            interval=3.0,  # wait 3 sec before executing update
+            function=self.on_update,
+            args=({'status': 'success', 'log_update': 'some log message'},),
+        ).start()
+
+    def close(self):
+        pass
+
+
+@mock.patch('dandeliion.client.simulator.SimulatorWebSocketClient', MockWSClient)
+def test__join(caplog):
     """
     Test case for _join helper function
     """
-    mock_wsclient.return_value = mock.MagicMock()
-    
-    # check that ws client was initialised correctly
-    mock_wsclient.assert_called_once_with(
-        url=mock_server_return['Run']['ws_status_url'],
-        on_update=mock.ANY,
-    )
-    mock_wsclient.return_value.subscribe.assert_called_once_with(mock_server_return['Run']['id'], mock_api_key)
-    # check if hook works as required (i.e. it updates the response_json and log messages)
-    assert mock_server_return['Run']['status'] == 'success'
+    mock_api_key = mock.Mock()
+    mock_url = mock.Mock()
+    prefetched_data = {'Run': {'ws_status_url': mock.Mock(), 'id': mock.Mock(), 'status': 'queued'}}
+
+    simulator = Simulator(api_url=mock_url, api_key=mock_api_key)
+    assert prefetched_data['Run']['status'] == 'queued'
+
+    import time
+    start_time = time.time()
     with caplog.at_level(logging.INFO):
-        mock_wsclient.call_args[1]['on_update'](updates={'status': 'queued', 'log_update': 'some log message'})
-    assert mock_server_return['Run']['status'] == 'queued'
+        simulator._join(prefetched_data)
+    # should have taken 3 seconds waiting time in mock client timer (+ a bit overhead)
+    assert time.time() - start_time > 3.0
+
+    # check if hook works as required (i.e. it updates the prefetched_data and log messages)
+    assert prefetched_data['Run']['status'] == 'success'
     assert 'some log message' in caplog.text
-    
+
+    # second invocation should be instantanious (since sim already success)
+    start_time = time.time()
+    simulator._join(prefetched_data)
+    assert time.time() - start_time < 0.1
+
 
 @mock.patch('dandeliion.client.simulator.requests.post')
 def test_submit_server_error(mock_post, input_extended_bpx):
