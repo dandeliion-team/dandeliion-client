@@ -58,6 +58,7 @@ dev = [
     "nox",
     "pytest",
     "pytest-sugar",
+    "pytest-timeout",
     "pytest-cov",
     "black",
     "flake8",
