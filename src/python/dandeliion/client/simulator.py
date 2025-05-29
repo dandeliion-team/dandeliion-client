@@ -68,7 +68,8 @@ class Simulator:
         return solution
 
     def _join(self, prefetched_data: dict):
-        """ blocks until simulation found in prefetched (meta)data is finished
+        """
+        Blocks until simulation found in prefetched (meta)data is finished
         """
         if prefetched_data['Run']['status'] not in ['queued', 'running']:
             return
