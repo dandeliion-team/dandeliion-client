@@ -62,7 +62,7 @@ class Simulator:
         response_json = response.json()
         data = update_dict(parameters, response_json, inline=False)
 
-        solution = Solution(self, data, time_column='Time [s]')
+        solution = Solution(sim=self, prefetched_data=data, time_column='Time [s]')
         if is_blocking:
             solution.join()
 
@@ -99,8 +99,6 @@ class Simulator:
                 cond.wait()
         # closing connection again
         client.close()
-
-        return Solution(sim=self, prefetched_data=data, time_column='Time [s]')
 
     def update_results(self, prefetched_data: dict, keys: list = None, inline: bool = False) -> Optional[dict]:
         """
