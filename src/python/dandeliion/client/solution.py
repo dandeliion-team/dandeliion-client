@@ -71,7 +71,8 @@ class InterpolatedArray(np.ndarray):
 
 
 class Solution(Mapping):
-    """Dictionary-style class for the solutions of a simulation run
+    """
+    Dictionary-style class for the solutions of a simulation run
     returned by :meth:`solve`
     """
 
@@ -97,7 +98,7 @@ class Solution(Mapping):
 
     def _init_solution(self):
         """
-        inits prefetched solution from simulator if necessary
+        Initialises prefetched solution from simulator if necessary
         """
         logger.debug('Initialising solutions')
         self._sim.update_results(self._data, inline=True)
@@ -109,7 +110,8 @@ class Solution(Mapping):
             )
 
     def __getitem__(self, key: str):
-        """Returns the results requested by the key.
+        """
+        Returns the results requested by the key.
 
         Args:
             key (str): key for results to be returned.
@@ -136,7 +138,8 @@ class Solution(Mapping):
             return np.array(copy.deepcopy(self._data['Solution'][key]))
 
     def __len__(self):
-        """Returns the number of fields in the solutions.
+        """
+        Returns the number of fields in the solutions.
 
         Returns:
             int: number of fields
@@ -146,7 +149,8 @@ class Solution(Mapping):
         return len(self._data['Solution'])
 
     def __iter__(self):
-        """Returns an iterator on the solutions fields.
+        """
+        Returns an iterator on the solutions fields.
 
         Returns:
             iterator
@@ -157,7 +161,8 @@ class Solution(Mapping):
 
     @property
     def status(self):
-        """Returns the status of the simulation run linked to this solutions
+        """
+        Returns the status of the simulation run linked to this solutions
 
         Returns:
             str: current status of simulation run ('queued', 'running', 'failed', 'success')
@@ -166,7 +171,8 @@ class Solution(Mapping):
 
     @property
     def log(self):
-        """Returns the log file produced by the backend
+        """
+        Returns the log file produced by the backend
 
         Returns:
             str: contents of log file (runtime_log.txt)
@@ -174,7 +180,8 @@ class Solution(Mapping):
         return self._sim.get_log(self._data)
 
     def dump(self, filepath: Union[str, Path]):
-        """Fetches all data and stores it into file.
+        """
+        Fetches all data and stores it into file.
 
         Args:
            filepath (str | Path): path to file were data should be stored
@@ -190,3 +197,9 @@ class Solution(Mapping):
         # now dump into file
         with open(filepath, 'w') as f:
             json.dump(self._data, f)
+
+    def join(self):
+        """
+        Blocks until solution is available (i.e. simulation is done)
+        """
+        self._sim._join(self._data)

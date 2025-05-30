@@ -8,6 +8,7 @@ All notable changes to this project will be documented in this file.
 ### Added
 
 - Added `solution.dump()` function to fetch all solution data and dump it into json file and `Simulator.restore()` function to restore solution (and reconnect with simulation)
+- `join()` function for solutions to wait for solutions to be ready (in non-blocking mode)
 
 ### Fixed
 
