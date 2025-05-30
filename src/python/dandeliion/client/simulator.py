@@ -166,7 +166,8 @@ class Simulator:
 
     @classmethod
     def restore(cls, filepath: Union[str, Path], api_url=None, api_key=None):
-        """Loads prefetched/solution data and creates new solution object.
+        """
+        Loads prefetched/solution data and creates new solution object.
         If api url/key provided (optional), it will also try to connect to server for updates
         for this simulation (e.g. if stored before finished)
 
