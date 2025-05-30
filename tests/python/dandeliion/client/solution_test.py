@@ -187,7 +187,7 @@ def test_status():
     Test case for various dict functions for solutions with uninitialised solutions (so initialising first)
     """
     mock_simulator = mock.MagicMock()
-    prefetched_data = mock.Mock()
+    prefetched_data = mock.Mock(spec=dict)
 
     solution = Solution(sim=mock_simulator, prefetched_data=prefetched_data)
     assert solution.status == mock_simulator.get_status.return_value
@@ -201,7 +201,7 @@ def test_log():
     Test case for accessing the log property of a solution instance.
     """
     mock_simulator = mock.MagicMock()
-    prefetched_data = mock.Mock()
+    prefetched_data = mock.Mock(spec=dict)
 
     solution = Solution(sim=mock_simulator, prefetched_data=prefetched_data)
     assert solution.log == mock_simulator.get_log.return_value

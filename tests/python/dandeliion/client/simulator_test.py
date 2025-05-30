@@ -333,13 +333,14 @@ def test_get_status_when_running(mock_update, status):
 
 
 @mock.patch('dandeliion.client.simulator.requests.get')
-def test_get_log_success(mock_get):
+@pytest.mark.parametrize("status", ['queued', 'running'])
+def test_get_log_success(mock_get, status):
     """
     Test case for getting log
     """
     mock_api_key = mock.Mock()
     mock_url = mock.Mock()
-    prefetched_data = {'Run': {'id': 42}}
+    prefetched_data = {'Run': {'id': 42, 'status': status}}
     expected_log = 'some log content'
 
     mock_get.return_value = mock.Mock(status_code=200, text=expected_log)
@@ -355,13 +356,14 @@ def test_get_log_success(mock_get):
     assert log == expected_log
 
 @mock.patch('dandeliion.client.simulator.requests.get')
-def test_get_log_empty_response(mock_get):
+@pytest.mark.parametrize("status", ['queued', 'running'])
+def test_get_log_empty_response(mock_get, status):
     """
     Test case for getting log where log file does not yet exist (returns an empty string)
     """
     mock_api_key = mock.Mock()
     mock_url = mock.Mock()
-    prefetched_data = {'Run': {'id': 42}}
+    prefetched_data = {'Run': {'id': 42, 'status': status}}
 
     mock_get.return_value = mock.Mock(status_code=200, text='')
 
@@ -377,13 +379,14 @@ def test_get_log_empty_response(mock_get):
 
 
 @mock.patch('dandeliion.client.simulator.requests.get')
-def test_get_log_server_error(mock_get):
+@pytest.mark.parametrize("status", ['queued', 'running'])
+def test_get_log_server_error(mock_get, status):
     """
     Test case for an error response getting log
     """
     mock_api_key = mock.Mock()
     mock_url = mock.Mock()
-    prefetched_data = {'Run': {'id': 42}}
+    prefetched_data = {'Run': {'id': 42, 'status': status}}
 
     mock_get.return_value = mock.Mock(status_code=404, reason='Not Found')
 
