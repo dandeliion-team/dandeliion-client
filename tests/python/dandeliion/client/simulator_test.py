@@ -115,17 +115,23 @@ def test_submit_blocking(mock_post, mock_wsclient, input_extended_bpx, caplog):
     
 
 @mock.patch('dandeliion.client.simulator.requests.post')
-def test_submit_server_error(mock_post, input_extended_bpx):
+@pytest.mark.parametrize("error", [
+    (403, {'error': 'some error message'}, "some error message"),
+    (403, "", "default reason"),
+    (418, None, "default reason"),
+])
+def test_submit_server_error(mock_post, input_extended_bpx, error):
     """
     Test case where server error happens during submit
     """
     mock_api_key = mock.Mock()
     mock_url = mock.Mock()
-    mock_post.return_value = MockResponse(json_data='', status_code=400, reason='some reason')
+    error_code, payload, expected_message = error
+    mock_post.return_value = MockResponse(json_data=payload, status_code=error_code, reason='default reason')
     mock_api_key = mock.Mock()
     mock_url = mock.Mock()
     simulator = Simulator(api_url=mock_url, api_key=mock_api_key)
-    with pytest.raises(DandeliionAPIException):
+    with pytest.raises(DandeliionAPIException, match=f"Your request has failed: {error_code} - {expected_message}"):
         simulator.submit(input_extended_bpx, is_blocking=False)
 
 
@@ -243,17 +249,23 @@ def test_update_results_with_incorrect_id(mock_get):
 
 
 @mock.patch('dandeliion.client.simulator.requests.get')
-def test_update_results_with_server_error(mock_get):
+@pytest.mark.parametrize("error", [
+    (403, {'error': 'some error message'}, "some error message"),
+    (403, "", "default reason"),
+    (418, None, "default reason"),
+])
+def test_update_results_with_server_error(mock_get, error):
     """
     Test case for calling update with server error
     """
+    error_code, payload, expected_message = error
     prefetched_data = {
         'Run': {'id': mock.Mock()},
     }
-    mock_get.return_value = MockResponse(json_data='', status_code=400, reason='some reason')
+    mock_get.return_value = MockResponse(json_data=payload, status_code=error_code, reason="default reason")
 
     simulator = Simulator(api_url=mock.Mock(), api_key=mock.Mock())
-    with pytest.raises(DandeliionAPIException):
+    with pytest.raises(DandeliionAPIException, match=f"Your request has failed: {expected_message}. Try again?"):
         simulator.update_results(prefetched_data)
 
 
