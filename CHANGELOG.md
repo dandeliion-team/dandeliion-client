@@ -3,6 +3,26 @@
 
 All notable changes to this project will be documented in this file.
 
+
+# [1.1]
+
+### Added
+
+-
+
+### Fixed
+
+-
+
+### Changed
+
+-
+
+### Removed
+
+-
+
+
 ## [1.0.0]
 
 ### Added
