@@ -25,7 +25,9 @@ Module containing class for handling access to solutions
 # built-in modules
 import logging
 import copy
-from typing import Protocol, Optional
+import json
+from typing import Protocol, Optional, Union
+from pathlib import Path
 from collections.abc import Mapping
 
 # custom modules
@@ -69,29 +71,34 @@ class InterpolatedArray(np.ndarray):
 
 
 class Solution(Mapping):
-    """Dictionary-style class for the solutions of a simulation run
+    """
+    Dictionary-style class for the solutions of a simulation run
     returned by :meth:`solve`
     """
 
     _data: dict = None
     _sim: Simulator = None
 
-    def __init__(self, sim: Simulator, prefetched_data: dict, time_column: str = None):
+    def __init__(self, sim: Simulator, prefetched_data: Union[dict, str, Path], time_column: str = None):
         """
         Constructor
 
         Args:
             sim (Simulator): simulator instance for fetching data from server
-            prefetched_data (dict): existing (meta) data
+            prefetched_data (dict | str | Path): existing (meta) data either as dictionary or stored in json file
             time_column (str): label of time column (used for interpolation)
         """
         self._sim = sim
+        # if prefetched_data is not dict i.e. path to json file instead, load file
+        if not isinstance(prefetched_data, dict):
+            with open(prefetched_data, 'r') as f:
+                prefetched_data = json.load(f)
         self._data = prefetched_data
         self._time_column = time_column
 
     def _init_solution(self):
         """
-        inits prefetched solution from simulator if necessary
+        Initialises prefetched solution from simulator if necessary
         """
         logger.debug('Initialising solutions')
         self._sim.update_results(self._data, inline=True)
@@ -103,7 +110,8 @@ class Solution(Mapping):
             )
 
     def __getitem__(self, key: str):
-        """Returns the results requested by the key.
+        """
+        Returns the results requested by the key.
 
         Args:
             key (str): key for results to be returned.
@@ -130,7 +138,8 @@ class Solution(Mapping):
             return np.array(copy.deepcopy(self._data['Solution'][key]))
 
     def __len__(self):
-        """Returns the number of fields in the solutions.
+        """
+        Returns the number of fields in the solutions.
 
         Returns:
             int: number of fields
@@ -140,7 +149,8 @@ class Solution(Mapping):
         return len(self._data['Solution'])
 
     def __iter__(self):
-        """Returns an iterator on the solutions fields.
+        """
+        Returns an iterator on the solutions fields.
 
         Returns:
             iterator
@@ -151,7 +161,8 @@ class Solution(Mapping):
 
     @property
     def status(self):
-        """Returns the status of the simulation run linked to this solutions
+        """
+        Returns the status of the simulation run linked to this solutions
 
         Returns:
             str: current status of simulation run ('queued', 'running', 'failed', 'success')
@@ -160,10 +171,35 @@ class Solution(Mapping):
 
     @property
     def log(self):
-        """Returns the log file produced by the backend
+        """
+        Returns the log file produced by the backend
 
         Returns:
             str: contents of log file (runtime_log.txt)
         """
-
         return self._sim.get_log(self._data)
+
+    def dump(self, filepath: Union[str, Path]):
+        """
+        Fetches all data and stores it into file.
+
+        Args:
+           filepath (str | Path): path to file were data should be stored
+        """
+        # fetch all (meta)data
+        self._sim.get_status(self._data)
+        try:
+            self._sim.update_results(self._data, keys=list(self.keys()), inline=True)
+        except DandeliionAPIException:  # if simulation not done yet
+            pass
+        self._sim.get_log(self._data)
+
+        # now dump into file
+        with open(filepath, 'w') as f:
+            json.dump(self._data, f)
+
+    def join(self):
+        """
+        Blocks until solution is available (i.e. simulation is done)
+        """
+        self._sim._join(self._data)
