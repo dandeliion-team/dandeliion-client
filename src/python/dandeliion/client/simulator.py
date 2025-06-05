@@ -39,6 +39,19 @@ from .solution import Solution
 logger = logging.getLogger(__name__)
 
 
+def get_error_message(response):
+    """
+    Extracts error message from error response
+    """
+    try:
+        # Try to parse a JSON error message
+        error_message = response.json()["error"]
+    except (KeyError, ValueError, TypeError):
+        # If response is not JSON (or expected field missing), fall back to reason text
+        error_message = response.reason
+    return error_message
+
+
 @dataclass
 class Simulator:
 
@@ -58,7 +71,9 @@ class Simulator:
         headers = {'Authorization': f'Token {self.api_key}'}  # TODO adapt to server
         response = requests.post(url=self.api_url, json=parameters, headers=headers)
         if response.status_code >= 400:
-            raise DandeliionAPIException(f"Your request has failed: {response.reason}")
+            raise DandeliionAPIException(
+                f"Your request has failed: {response.status_code} - {get_error_message(response)}"
+            )
         response_json = response.json()
         data = update_dict(parameters, response_json, inline=False)
 
@@ -110,7 +125,7 @@ class Simulator:
         headers = {'Authorization': f'Token {self.api_key}'}
         response = requests.get(url=self.api_url, params=params, headers=headers)
         if response.status_code >= 400:
-            raise DandeliionAPIException(f"Your request has failed: {response.reason}. Try again?")
+            raise DandeliionAPIException(f"Your request has failed: {get_error_message(response)}. Try again?")
 
         response_json = response.json()
         # sanity check if id for sim returned is same as the one requested
@@ -149,7 +164,7 @@ class Simulator:
 
             if response.status_code >= 400:
                 raise DandeliionAPIException(
-                    f"Error code {response.status_code}. Failed to fetch log: {response.reason}"
+                    f"Error code {response.status_code}. Failed to fetch log: {get_error_message(response)}"
                 )
 
         # not buffering log; will change anyway; just return response
