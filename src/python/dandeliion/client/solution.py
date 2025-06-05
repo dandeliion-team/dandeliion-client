@@ -203,4 +203,3 @@ class Solution(Mapping):
         Blocks until solution is available (i.e. simulation is done)
         """
         self._sim._join(self._data)
-

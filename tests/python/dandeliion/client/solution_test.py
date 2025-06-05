@@ -208,4 +208,3 @@ def test_log():
     mock_simulator.get_log.assert_called_once_with(
         prefetched_data
     )
-
