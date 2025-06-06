@@ -11,6 +11,10 @@ All notable changes to this project will be documented in this file.
 - `join()` function for solutions to wait for solutions to be ready (in non-blocking mode)
 - Changelog checker added to github workflow
 
+### Fixed
+
+- custom error messages from server now passed on correctly (and shown as part of messages of thrown Exceptions)
+
 ### Changed
 
 - final logs not stored client-side once fetched once to avoid unnecessary fetching
