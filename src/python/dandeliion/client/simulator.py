@@ -27,7 +27,8 @@ import logging
 import requests
 import threading
 from dataclasses import dataclass
-from typing import Optional
+from pathlib import Path
+from typing import Optional, Union
 
 # custom modules
 from .tools.misc import update_dict
@@ -36,6 +37,19 @@ from .exceptions import DandeliionAPIException
 from .solution import Solution
 
 logger = logging.getLogger(__name__)
+
+
+def get_error_message(response):
+    """
+    Extracts error message from error response
+    """
+    try:
+        # Try to parse a JSON error message
+        error_message = response.json()["error"]
+    except (KeyError, ValueError, TypeError):
+        # If response is not JSON (or expected field missing), fall back to reason text
+        error_message = response.reason
+    return error_message
 
 
 @dataclass
@@ -57,38 +71,49 @@ class Simulator:
         headers = {'Authorization': f'Token {self.api_key}'}  # TODO adapt to server
         response = requests.post(url=self.api_url, json=parameters, headers=headers)
         if response.status_code >= 400:
-            raise DandeliionAPIException(f"Your request has failed: {response.reason}")
+            raise DandeliionAPIException(
+                f"Your request has failed: {response.status_code} - {get_error_message(response)}"
+            )
         response_json = response.json()
-
-        run_id = response_json['Run']['id']
         data = update_dict(parameters, response_json, inline=False)
 
+        solution = Solution(sim=self, prefetched_data=data, time_column='Time [s]')
         if is_blocking:
-            cond = threading.Condition()
+            solution.join()
 
-            def task_update_signal_hook(updates):
-                logger.debug(f'update_signal_hook triggered with: {updates}')
-                with cond:
-                    data['Run']['status'] = updates['status']
-                    data['log_update'] = updates['log_update']
-                    logger.info(f"[{updates['status']}] | {updates['log_update']}")
+        return solution
 
-                    cond.notify_all()
-                    logger.debug('all notified')
+    def _join(self, prefetched_data: dict):
+        """
+        Blocks until simulation found in prefetched (meta)data is finished
+        """
+        if prefetched_data['Run']['status'] not in ['queued', 'running']:
+            return
 
-            client = SimulatorWebSocketClient(
-                url=data['Run']['ws_status_url'],
-                on_update=task_update_signal_hook,
-            )
-            client.subscribe(run_id, self.api_key)
-            while data['Run']['status'] in ['queued', 'running']:
+        cond = threading.Condition()
+
+        def task_update_signal_hook(updates):
+            logger.debug(f'update_signal_hook triggered with: {updates}')
+            with cond:
+                prefetched_data['Run']['status'] = updates['status']
+                prefetched_data['log_update'] = updates['log_update']
+                logger.info(f"[{updates['status']}] | {updates['log_update']}")
+
+                cond.notify_all()
+                logger.debug('all notified')
+
+        client = SimulatorWebSocketClient(
+            url=prefetched_data['Run']['ws_status_url'],
+            on_update=task_update_signal_hook,
+        )
+        run_id = prefetched_data['Run']['id']
+        client.subscribe(run_id, self.api_key)
+        with cond:
+            while prefetched_data['Run']['status'] in ['queued', 'running']:
                 # block until task update signalled
-                with cond:
-                    cond.wait()
-            # closing connection again
-            client.close()
-
-        return Solution(self, data, time_column='Time [s]')
+                cond.wait()
+        # closing connection again
+        client.close()
 
     def update_results(self, prefetched_data: dict, keys: list = None, inline: bool = False) -> Optional[dict]:
         """
@@ -97,10 +122,10 @@ class Simulator:
         params = [('key', key) for key in keys] if keys is not None else []
         params.append(('id', prefetched_data['Run']['id']))
 
-        headers = {'Authorization': f'Token {self.api_key}'}  # TODO adapt to server
+        headers = {'Authorization': f'Token {self.api_key}'}
         response = requests.get(url=self.api_url, params=params, headers=headers)
         if response.status_code >= 400:
-            raise DandeliionAPIException(f"Your request has failed: {response.reason}. Try again?")
+            raise DandeliionAPIException(f"Your request has failed: {get_error_message(response)}. Try again?")
 
         response_json = response.json()
         # sanity check if id for sim returned is same as the one requested
@@ -132,9 +157,37 @@ class Simulator:
         headers = {'Authorization': f'Token {self.api_key}'}
         params = []
         params.append(('id', prefetched_data['Run']['id']))
-        response = requests.get(f"{self.api_url}/log", params=params, headers=headers)
 
-        if response.status_code >= 400:
-            raise DandeliionAPIException(f"Error code {response.status_code}. Failed to fetch log: {response.reason}")
+        # fetch log if not done so yet; refetch it if simulation is not finished yet
+        if (prefetched_data['Run']['status'] in ['queued', 'running'] or 'Log' not in prefetched_data):
+            response = requests.get(f"{self.api_url}/log", params=params, headers=headers)
 
-        return response.text
+            if response.status_code >= 400:
+                raise DandeliionAPIException(
+                    f"Error code {response.status_code}. Failed to fetch log: {get_error_message(response)}"
+                )
+
+        # not buffering log; will change anyway; just return response
+        if prefetched_data['Run']['status'] in ['queued', 'running']:
+            return response.text
+
+        # store final version of log in buffer if not exists yet
+        if 'Log' not in prefetched_data:
+            prefetched_data['Log'] = response.text
+
+        return prefetched_data['Log']
+
+    @classmethod
+    def restore(cls, filepath: Union[str, Path], api_url=None, api_key=None):
+        """
+        Loads prefetched/solution data and creates new solution object.
+        If api url/key provided (optional), it will also try to connect to server for updates
+        for this simulation (e.g. if stored before finished)
+
+        Args:
+           filepath (str | Path): path to file were data should be loaded from
+           api_url (str): url to server where simulation was run
+           api_key (str): api key used to run this simulation
+        """
+        sim = cls(api_url=api_url, api_key=api_key)
+        return Solution(sim=sim, prefetched_data=filepath, time_column='Time [s]')

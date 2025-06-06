@@ -1,4 +1,5 @@
 # built-in modules
+import importlib.metadata
 from pathlib import Path
 from typing import Union
 
@@ -10,7 +11,7 @@ from .solution import Solution
 from pybamm import Experiment
 from bpx import parse_bpx_obj, parse_bpx_file, BPX
 
-__version__ = "1.0.0rc2"
+__version__ = importlib.metadata.version('dandeliion-client')
 
 
 def _convert_experiment(experiment: Experiment):

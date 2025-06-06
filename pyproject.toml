@@ -4,20 +4,19 @@ build-backend = "hatchling.build"
 
 [project]
 name = "dandeliion-client"
-version = "1.0.0rc2"
-
+version = "1.0.0"
 description = "Client for accessing Dandeliion services"
 readme = "README.md"
 license = { file = "LICENSE.txt" }
 keywords = ["dandeliion", "client"]
 classifiers = [
-  "Development Status :: 4 - Beta",
+  "Development Status :: 5 - Production/Stable",
   "Programming Language :: Python",
   "Intended Audience :: Science/Research",
 ]
 dependencies = [
   "bpx",
-  "pybamm~=25.1.1",
+  "pybamm~=25.4.2",
   "python-socketio~=5.12.1",
   "websocket-client~=1.8.0",
 ]
@@ -59,6 +58,7 @@ dev = [
     "nox",
     "pytest",
     "pytest-sugar",
+    "pytest-timeout",
     "pytest-cov",
     "black",
     "flake8",

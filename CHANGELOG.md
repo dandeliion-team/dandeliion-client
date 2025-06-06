@@ -3,6 +3,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.0]
+
+### Added
+
+- Added `solution.dump()` function to fetch all solution data and dump it into json file and `Simulator.restore()` function to restore solution (and reconnect with simulation)
+- `join()` function for solutions to wait for solutions to be ready (in non-blocking mode)
+- Changelog checker added to github workflow
+
+### Fixed
+
+- custom error messages from server now passed on correctly (and shown as part of messages of thrown Exceptions)
+
+### Changed
+
+- final logs not stored client-side once fetched once to avoid unnecessary fetching
+- Changed pinned version of Pybamm in pyproject.toml from 25.1.1 to 25.4.2
+
+
 ## [1.0.0rc2]
 
 ### Added
@@ -20,9 +38,6 @@ All notable changes to this project will be documented in this file.
 - Status update now returns status + most recent line from logs.
 - Jupyter notebooks show output from `solution.log`.
 
-### Removed
-
-- 
 
 ## [1.0.0rc1]
 
