@@ -119,6 +119,12 @@ class Simulator:
         """
         Function to (pre)fetch result columns from server and update/append prefetched_data
         """
+        # first check if it is a restored incomplete run with an invalid simulator
+        if self.api_url is None:
+            raise DandeliionAPIException("No valid api_url found in simulator instance. If this is a restored "
+                                         "solution, please make sure to provide correct details of the original "
+                                         "simulator connection when restoring it.")
+
         params = [('key', key) for key in keys] if keys is not None else []
         params.append(('id', prefetched_data['Run']['id']))
 

@@ -288,6 +288,24 @@ def test_update_results_with_incorrect_id(mock_get):
 
 
 @mock.patch('dandeliion.client.simulator.requests.get')
+def test_update_results_with_incomplete_simulator(mock_get):
+    """
+    Test case for calling update on an incomplete simulator
+    e.g. from restoring a (partial) solution without connection credentials
+    """
+    id_ = mock.Mock()
+    
+    prefetched_data = {
+        'Run': {'id': id_},
+    }
+    mock_get.return_value = MockResponse(json_data=prefetched_data, status_code=200)
+
+    simulator = Simulator(api_url=None, api_key=mock.Mock())
+    with pytest.raises(DandeliionAPIException):
+        simulator.update_results(prefetched_data)
+
+
+@mock.patch('dandeliion.client.simulator.requests.get')
 @pytest.mark.parametrize("error", [
     (403, {'error': 'some error message'}, "some error message"),
     (403, "", "default reason"),
