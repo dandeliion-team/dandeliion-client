@@ -3,7 +3,27 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.0.0rc3]
+
+# [1.1]
+
+### Added
+
+-
+
+### Fixed
+
+-
+
+### Changed
+
+-
+
+### Removed
+
+-
+
+
+## [1.0.0]
 
 ### Added
 
@@ -13,16 +33,13 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
--
+- custom error messages from server now passed on correctly (and shown as part of messages of thrown Exceptions)
 
 ### Changed
 
 - final logs not stored client-side once fetched once to avoid unnecessary fetching
 - Changed pinned version of Pybamm in pyproject.toml from 25.1.1 to 25.4.2
 
-### Removed
-
--
 
 ## [1.0.0rc2]
 
@@ -41,9 +58,6 @@ All notable changes to this project will be documented in this file.
 - Status update now returns status + most recent line from logs.
 - Jupyter notebooks show output from `solution.log`.
 
-### Removed
-
-- 
 
 ## [1.0.0rc1]
 
