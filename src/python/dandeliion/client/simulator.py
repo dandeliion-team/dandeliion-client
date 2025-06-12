@@ -193,7 +193,7 @@ class Simulator:
         return prefetched_data['Log']
 
     @classmethod
-    def restore(cls, filepath: Union[str, Path], api_url=None, api_key=None):
+    def restore(cls, filepath: Union[str, Path], api_key=None, api_url=None):
         """
         Loads prefetched/solution data and creates new solution object.
         If api url/key provided (optional), it will also try to connect to server for updates
@@ -201,9 +201,10 @@ class Simulator:
 
         Args:
            filepath (str | Path): path to file were data should be loaded from
+           api_key (str, optional): api key used to run this simulation; for default, none is
+                                    used and solution won't be able to be updated from server
            api_url (str, optional): url to server where simulation was run; default uses one
                                     stored in file
-           api_key (str): api key used to run this simulation
         """
         # extract api_url from file
         if api_url is None:
@@ -214,7 +215,7 @@ class Simulator:
                 pass
         sim = cls(api_url=api_url, api_key=api_key)
         solution = Solution(sim=sim, prefetched_data=filepath, time_column='Time [s]')
-        # if key provided, trigger status update to check key
+        # if key provided, trigger status update to check key (if not finished yet)
         if api_key is not None:
             solution.status
         return solution
