@@ -10,6 +10,12 @@ All notable changes to this project will be documented in this file.
 
 - time column getting fetched when needed
 - proper error message when incomplete solution restored without connection details
+- dead-lock fixed when joining on incomplete simulation without correct connection details
+
+
+### Changed
+
+- API url now stored in internal data as well and used for reconnecting restored simulations
 
 
 ## [1.0.0]

@@ -23,6 +23,7 @@ module containing Dandeliion Simulator class
 #
 
 # built-in modules
+import json
 import logging
 import requests
 import threading
@@ -76,6 +77,8 @@ class Simulator:
             )
         response_json = response.json()
         data = update_dict(parameters, response_json, inline=False)
+        if 'api_url' not in data['Run']:  # if not provided by server
+            data['Run']['api_url'] = self.api_url
 
         solution = Solution(sim=self, prefetched_data=data, time_column='Time [s]')
         if is_blocking:
@@ -89,6 +92,12 @@ class Simulator:
         """
         if prefetched_data['Run']['status'] not in ['queued', 'running']:
             return
+
+        if self.api_key is None:
+            raise DandeliionAPIException(
+                "You cannot join on this restored, incomplete simulation as "
+                "there was no API provided when restoring it."
+            )
 
         cond = threading.Condition()
 
@@ -192,8 +201,20 @@ class Simulator:
 
         Args:
            filepath (str | Path): path to file were data should be loaded from
-           api_url (str): url to server where simulation was run
+           api_url (str, optional): url to server where simulation was run; default uses one
+                                    stored in file
            api_key (str): api key used to run this simulation
         """
+        # extract api_url from file
+        if api_url is None:
+            try:
+                with open(filepath, 'r') as f:
+                    api_url = json.load(f)['Run']['api_url']
+            except KeyError:  # no api_url found in file
+                pass
         sim = cls(api_url=api_url, api_key=api_key)
-        return Solution(sim=sim, prefetched_data=filepath, time_column='Time [s]')
+        solution = Solution(sim=sim, prefetched_data=filepath, time_column='Time [s]')
+        # if key provided, trigger status update to check key
+        if api_key is not None:
+            solution.status
+        return solution
