@@ -128,10 +128,18 @@ class Solution(Mapping):
             raise KeyError(
                 f'Column for {key} does not exist in solution.'
             )
-        # fetch data if necessary
+        # fetch data if necessary (time column and requested column)
+        keys = []
+        if self._time_column and self._data['Solution'][self._time_column] is None:
+            logger.info(f"Fetching '{self._time_column}' column from simulator")
+            keys.append(self._time_column)
         if self._data['Solution'][key] is None:
             logger.info(f"Fetching '{key}' column from simulator")
-            self._sim.update_results(self._data, keys=[key], inline=True)
+            keys.append(key)
+        if keys:
+            self._sim.update_results(self._data, keys=keys, inline=True)
+        # now return either an InterpolatedArray (if time column defined) or just a numpy array with a copy
+        # of the requested column
         if self._time_column:
             return InterpolatedArray(t=self._data['Solution'][self._time_column], y=self._data['Solution'][key])
         else:
