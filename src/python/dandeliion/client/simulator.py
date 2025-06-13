@@ -107,7 +107,7 @@ class Simulator:
         if self.api_key is None:
             raise DandeliionAPIException(
                 "You cannot join on this restored, incomplete simulation as "
-                "there was no API provided when restoring it."
+                "there was no API key provided when restoring it."
             )
 
         cond = threading.Condition()
