@@ -23,6 +23,7 @@ Testing the routines for dandeliion.client.Simulator
 #
 
 # built-in modules
+import filecmp
 import logging
 import json
 import copy
@@ -31,7 +32,7 @@ from unittest import mock
 from pathlib import Path
 
 # custom modules
-from dandeliion.client.simulator import Simulator, DandeliionAPIException
+from dandeliion.client.simulator import Simulator, Solution, DandeliionAPIException
 
 logger = logging.getLogger(__name__)
 
@@ -151,6 +152,22 @@ def test__join(caplog):
     start_time = time.time()
     simulator._join(prefetched_data)
     assert time.time() - start_time < 0.1
+
+
+@pytest.mark.timeout(60)  # prevents test from just getting stuck if update fails
+@mock.patch('dandeliion.client.simulator.SimulatorWebSocketClient', MockWSClient)
+def test__join_without_key(caplog):
+    """
+    Test case for _join helper function where api key is missing (e.g. not provided
+    on restoring solution)
+    """
+    mock_url = mock.Mock()
+    prefetched_data = {'Run': {'ws_status_url': mock.Mock(), 'id': mock.Mock(), 'status': 'queued'}}
+
+    simulator = Simulator(api_url=mock_url, api_key=None)
+
+    with pytest.raises(DandeliionAPIException):
+        simulator._join(prefetched_data)
 
 
 @mock.patch('dandeliion.client.simulator.requests.post')
@@ -283,6 +300,24 @@ def test_update_results_with_incorrect_id(mock_get):
     mock_get.return_value = MockResponse(json_data=returned_data, status_code=200)
 
     simulator = Simulator(api_url=mock.Mock(), api_key=mock.Mock())
+    with pytest.raises(DandeliionAPIException):
+        simulator.update_results(prefetched_data)
+
+
+@mock.patch('dandeliion.client.simulator.requests.get')
+def test_update_results_with_incomplete_simulator(mock_get):
+    """
+    Test case for calling update on an incomplete simulator
+    e.g. from restoring a (partial) solution without connection credentials
+    """
+    id_ = mock.Mock()
+    
+    prefetched_data = {
+        'Run': {'id': id_},
+    }
+    mock_get.return_value = MockResponse(json_data=prefetched_data, status_code=200)
+
+    simulator = Simulator(api_url=None, api_key=mock.Mock())
     with pytest.raises(DandeliionAPIException):
         simulator.update_results(prefetched_data)
 
@@ -424,3 +459,35 @@ def test_get_log_missing_id():
 
     with pytest.raises(KeyError):
         simulator.get_log(prefetched_data)
+
+
+@pytest.mark.parametrize("mock_prefetched_data,is_update_called", [
+    (Path(__file__).parent / "data"/ "output_server_finished.json", False),
+    (Path(__file__).parent / "data"/ "output_server_unfinished.json", True),
+])
+@mock.patch('dandeliion.client.simulator.Simulator.update_results')
+def test_dump_and_restore(mock_update, tmp_path, mock_prefetched_data, is_update_called):
+    """
+    Test case for saving and restoring solution for finished/unfinished run
+    """
+    mock_api_key = mock.Mock()
+
+    sim = mock.Mock(spec=Simulator)
+    solution = Solution(sim=sim, prefetched_data=mock_prefetched_data, time_column='Time [s]')
+
+    output_file = tmp_path / "test_dump.json"
+    solution.dump(output_file)
+    # check if dumped file identical to the original file
+    filecmp.cmp(mock_prefetched_data, output_file, shallow=False)
+
+    solution_restored = Simulator.restore(output_file, api_key=mock_api_key)
+    # check that update_results was (not) called
+    if is_update_called:
+        mock_update.assert_called_once()
+    else:
+        mock_update.assert_not_called()
+    # check if content of restored solution is identical to previous solution
+    assert solution_restored._data == solution._data
+    # check if simulator of restored solution is set up correctly
+    assert solution_restored._sim.api_key == mock_api_key
+    assert solution_restored._sim.api_url == solution._data["Run"]["api_url"]
