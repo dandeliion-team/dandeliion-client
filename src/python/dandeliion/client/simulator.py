@@ -23,6 +23,7 @@ module containing Dandeliion Simulator class
 #
 
 # built-in modules
+import json
 import logging
 import requests
 import threading
@@ -57,14 +58,25 @@ class Simulator:
 
     """
     Simulator class that stores authentication details and deals with job submission and result acquisition
-    """
 
+    Attributes:
+        api_url (str): URL to server's API interface
+        api_key (str): API key to access server
+    """
     api_url: str
     api_key: str
 
-    def submit(self, parameters: dict, is_blocking: bool = True):
+    def submit(self, parameters: dict, is_blocking: bool = True) -> Solution:
         """
-        Submit parameters to Simulator instance
+        Submit parameters to Simulator instance and returns Solution instance
+
+        Args:
+            parameters (dict): dictionary with all simulation parameters
+            is_blocking (bool, optional): If True, function call will block until simulation is done,
+                otherwise it will return instantly; default is True
+
+        Returns:
+            Solution: solution instance to access simulation status/results
         """
 
         # submit simulation to rest api
@@ -76,6 +88,8 @@ class Simulator:
             )
         response_json = response.json()
         data = update_dict(parameters, response_json, inline=False)
+        if 'api_url' not in data['Run']:  # if not provided by server
+            data['Run']['api_url'] = self.api_url
 
         solution = Solution(sim=self, prefetched_data=data, time_column='Time [s]')
         if is_blocking:
@@ -89,6 +103,12 @@ class Simulator:
         """
         if prefetched_data['Run']['status'] not in ['queued', 'running']:
             return
+
+        if self.api_key is None:
+            raise DandeliionAPIException(
+                "You cannot join on this restored, incomplete simulation as "
+                "there was no API key provided when restoring it."
+            )
 
         cond = threading.Condition()
 
@@ -119,6 +139,12 @@ class Simulator:
         """
         Function to (pre)fetch result columns from server and update/append prefetched_data
         """
+        # first check if it is a restored incomplete run with an invalid simulator
+        if self.api_url is None:
+            raise DandeliionAPIException("No valid api_url found in simulator instance. If this is a restored "
+                                         "solution, please make sure to provide correct details of the original "
+                                         "simulator connection when restoring it.")
+
         params = [('key', key) for key in keys] if keys is not None else []
         params.append(('id', prefetched_data['Run']['id']))
 
@@ -178,7 +204,7 @@ class Simulator:
         return prefetched_data['Log']
 
     @classmethod
-    def restore(cls, filepath: Union[str, Path], api_url=None, api_key=None):
+    def restore(cls, filepath: Union[str, Path], api_key=None, api_url=None) -> Solution:
         """
         Loads prefetched/solution data and creates new solution object.
         If api url/key provided (optional), it will also try to connect to server for updates
@@ -186,8 +212,24 @@ class Simulator:
 
         Args:
            filepath (str | Path): path to file were data should be loaded from
-           api_url (str): url to server where simulation was run
-           api_key (str): api key used to run this simulation
+           api_key (str, optional): api key used to run this simulation; for default, none is
+                                    used and solution won't be able to be updated from server
+           api_url (str, optional): url to server where simulation was run; default uses one
+                                    stored in file
+
+        Returns:
+            Solution: solution instance to access simulation status/results
         """
+        # extract api_url from file
+        if api_url is None:
+            try:
+                with open(filepath, 'r') as f:
+                    api_url = json.load(f)['Run']['api_url']
+            except KeyError:  # no api_url found in file
+                pass
         sim = cls(api_url=api_url, api_key=api_key)
-        return Solution(sim=sim, prefetched_data=filepath, time_column='Time [s]')
+        solution = Solution(sim=sim, prefetched_data=filepath, time_column='Time [s]')
+        # if key provided, trigger status update to check key (if not finished yet)
+        if api_key is not None:
+            solution.status
+        return solution
