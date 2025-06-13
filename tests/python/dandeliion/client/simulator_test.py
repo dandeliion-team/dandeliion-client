@@ -154,6 +154,22 @@ def test__join(caplog):
     assert time.time() - start_time < 0.1
 
 
+@pytest.mark.timeout(60)  # prevents test from just getting stuck if update fails
+@mock.patch('dandeliion.client.simulator.SimulatorWebSocketClient', MockWSClient)
+def test__join_without_key(caplog):
+    """
+    Test case for _join helper function where api key is missing (e.g. not provided
+    on restoring solution)
+    """
+    mock_url = mock.Mock()
+    prefetched_data = {'Run': {'ws_status_url': mock.Mock(), 'id': mock.Mock(), 'status': 'queued'}}
+
+    simulator = Simulator(api_url=mock_url, api_key=None)
+
+    with pytest.raises(DandeliionAPIException):
+        simulator._join(prefetched_data)
+
+
 @mock.patch('dandeliion.client.simulator.requests.post')
 @pytest.mark.parametrize("error", [
     (403, {'error': 'some error message'}, "some error message"),

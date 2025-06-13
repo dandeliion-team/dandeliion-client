@@ -58,14 +58,25 @@ class Simulator:
 
     """
     Simulator class that stores authentication details and deals with job submission and result acquisition
-    """
 
+    Attributes:
+        api_url (str): URL to server's API interface
+        api_key (str): API key to access server
+    """
     api_url: str
     api_key: str
 
-    def submit(self, parameters: dict, is_blocking: bool = True):
+    def submit(self, parameters: dict, is_blocking: bool = True) -> Solution:
         """
-        Submit parameters to Simulator instance
+        Submit parameters to Simulator instance and returns Solution instance
+
+        Args:
+            parameters (dict): dictionary with all simulation parameters
+            is_blocking (bool, optional): If True, function call will block until simulation is done,
+                otherwise it will return instantly; default is True
+
+        Returns:
+            Solution: solution instance to access simulation status/results
         """
 
         # submit simulation to rest api
@@ -193,7 +204,7 @@ class Simulator:
         return prefetched_data['Log']
 
     @classmethod
-    def restore(cls, filepath: Union[str, Path], api_key=None, api_url=None):
+    def restore(cls, filepath: Union[str, Path], api_key=None, api_url=None) -> Solution:
         """
         Loads prefetched/solution data and creates new solution object.
         If api url/key provided (optional), it will also try to connect to server for updates
@@ -205,6 +216,9 @@ class Simulator:
                                     used and solution won't be able to be updated from server
            api_url (str, optional): url to server where simulation was run; default uses one
                                     stored in file
+
+        Returns:
+            Solution: solution instance to access simulation status/results
         """
         # extract api_url from file
         if api_url is None:
