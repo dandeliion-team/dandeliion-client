@@ -3,6 +3,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.2]
+
+- Update LICENSE file
+
+
 ## [1.0.1]
 
 ### Fixed
@@ -10,7 +15,6 @@ All notable changes to this project will be documented in this file.
 - time column getting fetched when needed
 - proper error message when incomplete solution restored without connection details
 - dead-lock fixed when joining on incomplete simulation without correct connection details
-
 
 ### Changed
 
