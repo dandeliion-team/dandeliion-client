@@ -3,6 +3,23 @@
 
 All notable changes to this project will be documented in this file.
 
+# [1.0.2]
+
+### Added
+
+- security policy (SECURITY.md)
+
+### Fixed
+
+-
+
+### Changed
+
+-
+
+### Removed
+
+
 ## [1.0.1]
 
 ### Fixed
