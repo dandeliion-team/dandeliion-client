@@ -7,7 +7,7 @@ name = "dandeliion-client"
 version = "1.0.2"
 description = "Client for accessing Dandeliion services"
 readme = "README.md"
-license = { file = "LICENSE.txt" }
+license = { file = "LICENSE" }
 keywords = ["dandeliion", "client"]
 classifiers = [
   "Development Status :: 5 - Production/Stable",
