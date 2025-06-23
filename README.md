@@ -11,6 +11,12 @@
 
 </div>
 
-# Dandeliion client
+# DandeLiion client
 
-The Dandeliion client is a client software written in Python to submit/run dandeliion simulations on a remote server and to retrieve their results.
+The DandeLiion client is a client software written in Python to submit/run DandeLiion simulations on a remote server and to retrieve simulation results.
+
+## Documentation, examples, and CHANGELOG
+
+- Link to auto-generated documentation: [https://dandeliion-team.github.io/dandeliion-client/index.html](https://dandeliion-team.github.io/dandeliion-client/index.html).
+- Ready to use examples are given in the [examples](https://github.com/dandeliion-team/dandeliion-client/tree/master/examples) directory of this repository.
+- All notable user-facing changes to this project are documented in the [CHANGELOG](https://github.com/dandeliion-team/dandeliion-client/blob/master/CHANGELOG.md).
