@@ -3,21 +3,16 @@
 
 All notable changes to this project will be documented in this file.
 
+
 # [1.0.2]
 
 ### Added
 
 - security policy (SECURITY.md)
 
-### Fixed
-
--
-
 ### Changed
 
--
-
-### Removed
+- LICENSE file
 
 
 ## [1.0.1]
@@ -27,7 +22,6 @@ All notable changes to this project will be documented in this file.
 - time column getting fetched when needed
 - proper error message when incomplete solution restored without connection details
 - dead-lock fixed when joining on incomplete simulation without correct connection details
-
 
 ### Changed
 
