@@ -8,6 +8,7 @@ All notable changes to this project will be documented in this file.
 ### Added
 
 - security policy (SECURITY.md)
+- openssf scorecard workflow
 
 ### Fixed
 
