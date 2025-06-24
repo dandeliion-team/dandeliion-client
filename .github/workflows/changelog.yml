@@ -5,6 +5,9 @@ on:
     branches:
       - "develop"
 
+permissions:
+  contents: read
+
 jobs:
   Check-Changelog:
     name: Check Changelog Action

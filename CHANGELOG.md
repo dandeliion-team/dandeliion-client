@@ -9,6 +9,7 @@ All notable changes to this project will be documented in this file.
 
 - security policy (SECURITY.md)
 - openssf scorecard workflow
+- static code testing
 
 ### Fixed
 
