@@ -16,7 +16,7 @@ classifiers = [
 ]
 dependencies = [
   "bpx",
-  "pybamm~=25.4.2",
+  "pybamm~=25.6.0",
   "python-socketio~=5.12.1",
   "websocket-client~=1.8.0",
 ]
