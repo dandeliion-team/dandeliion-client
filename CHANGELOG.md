@@ -10,6 +10,7 @@ All notable changes to this project will be documented in this file.
 - security policy (SECURITY.md)
 - openssf scorecard workflow
 - static code testing
+- support for drive cycles
 
 ### Fixed
 
@@ -19,6 +20,7 @@ All notable changes to this project will be documented in this file.
 ### Changed
 
 - LICENSE file
+- pybamm now optional dependency
 
 ### Removed
 
