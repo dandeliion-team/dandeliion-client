@@ -52,6 +52,7 @@ docs = [
     "sphinx-gallery",
     "sphinx-hoverxref",
     "sphinx-docsearch",
+    "dandeliion-client[pybamm]",
 ]
 dev = [
     "nox",
