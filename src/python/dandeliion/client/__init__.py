@@ -31,36 +31,40 @@ def _convert_experiment(experiment: Experiment, time_series: dict = None) -> tup
 
     for cond in operating_conditions:
         if isinstance(cond, tuple):
-            steps += list(cond)
-        elif isinstance(cond, str):
-            steps.append(cond)
-        elif __has_pybamm__ and isinstance(cond, (Current, Power)):
-            if isinstance(cond.value, Interpolant):
-                if cond.input_duration is not None:
-                    raise ValueError("'duration' argument not supported for drive cycles yet.")
-                time_series_ = {
-                    'Time [s]': (cond.value.x[0] if isinstance(cond.value.x, Sequence)
-                                 else cond.value.x)
-                }
-                if isinstance(cond, Current):
-                    time_series_['Current [A]'] = cond.value.y
-                else:
-                    time_series_['Power [W]'] = cond.value.y
-
-                # check if time series already exists and only accept it if identical
-                if time_series is not None:
-                    try:
-                        np.testing.assert_equal(time_series_, time_series)
-                    except AssertionError as e:
-                        raise NotImplementedError("Currently only identical drive cycle time series are supported. "
-                                                  "Found multiple non-identical ones!") from e
-                else:
-                    time_series = time_series_
-                steps.append('Time series')
-            else:
-                raise TypeError(f"{type(cond)} only supported as drive cycle at the moment.")
+            steps_ = list(cond)
         else:
-            raise TypeError(f"Unsupported type found in Experiment: {type(cond)}")
+            steps_ = [cond]
+
+        for step in steps_:
+            if isinstance(step, str):
+                steps.append(step)
+            elif __has_pybamm__ and isinstance(step, (Current, Power)):
+                if isinstance(step.value, Interpolant):
+                    if step.input_duration is not None:
+                        raise ValueError("'duration' argument not supported for drive cycles yet.")
+                    time_series_ = {
+                        'Time [s]': (step.value.x[0] if isinstance(step.value.x, Sequence)
+                                     else step.value.x)
+                    }
+                    if isinstance(step, Current):
+                        time_series_['Current [A]'] = step.value.y
+                    else:
+                        time_series_['Power [W]'] = step.value.y
+
+                    # check if time series already exists and only accept it if identical
+                    if time_series is not None:
+                        try:
+                            np.testing.assert_equal(time_series_, time_series)
+                        except AssertionError as e:
+                            raise NotImplementedError("Currently only identical drive cycle time series are supported. "
+                                                      "Found multiple non-identical ones!") from e
+                    else:
+                        time_series = time_series_
+                    steps.append('Time series')
+                else:
+                    raise TypeError(f"{type(step)} only supported as drive cycle at the moment.")
+            else:
+                raise TypeError(f"Unsupported type found in Experiment: {type(cond)}")
 
     return {
         "Instructions": steps,

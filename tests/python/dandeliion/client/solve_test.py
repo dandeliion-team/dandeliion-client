@@ -306,6 +306,7 @@ def test__convert_experiment_with_drive_cycle(drive_cycle, drive_cycle_x, drive_
                 "Discharge at 10 A for 200 seconds",
                 "Rest for 10 seconds",
                 "Charge at 6 A for 100 seconds",
+                drive_cycle_step,
             ),
             drive_cycle_step,
         ]
@@ -317,6 +318,7 @@ def test__convert_experiment_with_drive_cycle(drive_cycle, drive_cycle_x, drive_
         "Discharge at 10 A for 200 seconds",
         "Rest for 10 seconds",
         "Charge at 6 A for 100 seconds",
+        "Time series",
         "Time series",
     ] * 2
     np.testing.assert_equal(time_series, {
