@@ -23,7 +23,7 @@ class Experiment:
 
     def __init__(
         self,
-        operating_conditions: list[str | tuple[str]],
+        operating_conditions: list[Union[str, tuple[str]]],
         period: Union[str, None] = None,
         temperature: Union[float, None] = None,
         termination: Union[list[str], None] = None,
