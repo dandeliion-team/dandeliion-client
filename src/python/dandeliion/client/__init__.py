@@ -28,6 +28,7 @@ def _convert_experiment(experiment: Experiment, time_series: dict = None) -> tup
     """
     operating_conditions, period, temperature, termination = experiment.args
     steps = []
+
     for cond in operating_conditions:
         if isinstance(cond, tuple):
             steps += list(cond)
@@ -125,6 +126,9 @@ def solve(
         )
         params['Parameterisation']["User-defined"]["DandeLiion: Experiment"] = experiment_
         if time_series is not None:
+            # convert time_series values to list in preparation for serialising them
+            for key, val in time_series.items():
+                time_series[key] = list(time_series[key])
             params['Parameterisation']["User-defined"]["DandeLiion: Time series input"] = time_series
 
     return simulator.submit(parameters=params, is_blocking=is_blocking)

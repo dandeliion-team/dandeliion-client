@@ -97,7 +97,7 @@ def test_solve_with_time_series(mock_convert, input_bpx):
     Test case for accessing prefetched data
     """
     mock_simulator = mock.MagicMock()
-    mock_convert.return_value = mock.Mock(), mock.Mock()
+    mock_convert.return_value = mock.Mock(), {mock.Mock(): np.random.random_sample(10), mock.Mock(): np.random.random_sample(10)}
 
     experiment = mock.Mock(),
 
