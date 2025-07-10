@@ -1,5 +1,6 @@
 from typing import Union
 
+
 class Experiment:
     """
     Class for experimental conditions under which to run the model. In general, a

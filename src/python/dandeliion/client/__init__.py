@@ -11,23 +11,23 @@ from .solution import Solution
 # third-party modules
 try:
     from pybamm import Experiment, Interpolant
-    from pybamm.experiment.step import Power, Current, Voltage, BaseStep
+    from pybamm.experiment.step import Power, Current
     __has_pybamm__ = True
 except ModuleNotFoundError:
     from .experiment import Experiment
     __has_pybamm__ = False
 from bpx import parse_bpx_obj, parse_bpx_file, BPX
+import numpy as np
 
 __version__ = importlib.metadata.version('dandeliion-client')
 
 
-def _convert_experiment(experiment: Experiment) -> tuple[dict, dict]:
+def _convert_experiment(experiment: Experiment, time_series: dict = None) -> tuple[dict, dict]:
     """
     converts pybamm experiment into dict
     """
     operating_conditions, period, temperature, termination = experiment.args
     steps = []
-    time_series = None
     for cond in operating_conditions:
         if isinstance(cond, tuple):
             steps += list(cond)
@@ -36,15 +36,25 @@ def _convert_experiment(experiment: Experiment) -> tuple[dict, dict]:
         elif __has_pybamm__ and isinstance(cond, (Current, Power)):
             if isinstance(cond.value, Interpolant):
                 if cond.input_duration is not None:
-                    raise TypeError("'duration' argument not supported for drive cycles yet.")
-                time_series = {
-                    'Time [s]': list(cond.value.x[0] if isinstance(cond.value.x, Sequence)
-                                     else cond.value.x)
+                    raise ValueError("'duration' argument not supported for drive cycles yet.")
+                time_series_ = {
+                    'Time [s]': (cond.value.x[0] if isinstance(cond.value.x, Sequence)
+                                 else cond.value.x)
                 }
                 if isinstance(cond, Current):
-                    time_series['Current [A]'] = list(cond.value.y)
+                    time_series_['Current [A]'] = cond.value.y
                 else:
-                    time_series['Power [W]'] = list(cond.value.y)
+                    time_series_['Power [W]'] = cond.value.y
+
+                # check if time series already exists and only accept it if identical
+                if time_series is not None:
+                    try:
+                        np.testing.assert_equal(time_series_, time_series)
+                    except AssertionError as e:
+                        raise NotImplementedError("Currently only identical drive cycle time series are supported. "
+                                                  "Found multiple non-identical ones!") from e
+                else:
+                    time_series = time_series_
                 steps.append('Time series')
             else:
                 raise TypeError(f"{type(cond)} only supported as drive cycle at the moment.")
@@ -102,21 +112,19 @@ def solve(
     ):
         params['Parameterisation']["User-defined"] = {}
 
-    # add experiment
-    if experiment:
-        experiment_, time_series = _convert_experiment(experiment)
-        params['Parameterisation']["User-defined"]["DandeLiion: Experiment"] = experiment_
-        if time_series is not None:
-            # check if time series already exists and only accept it if identical
-            if "DandeLiion: Time series input" in params['Parameterisation']["User-defined"]:
-                if params['Parameterisation']["User-defined"]["DandeLiion: Time series input"] != time_series:
-                    raise ValueError("Currently only identical drive cycles are supported")
-            else:
-                params['Parameterisation']["User-defined"]["DandeLiion: Time series input"] = time_series
-
     # add/overwrite extra parameters
     if extra_params:
         for param, value in extra_params.items():
             params['Parameterisation']["User-defined"][f"DandeLiion: {param}"] = value
+
+    # add experiment
+    if experiment:
+        experiment_, time_series = _convert_experiment(
+            experiment=experiment,
+            time_series=params['Parameterisation']["User-defined"].get('DandeLiion: Time series input', None),
+        )
+        params['Parameterisation']["User-defined"]["DandeLiion: Experiment"] = experiment_
+        if time_series is not None:
+            params['Parameterisation']["User-defined"]["DandeLiion: Time series input"] = time_series
 
     return simulator.submit(parameters=params, is_blocking=is_blocking)

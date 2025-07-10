@@ -31,11 +31,12 @@ from pathlib import Path
 
 # custom modules
 from dandeliion.client import solve, _convert_experiment
+from dandeliion.client.experiment import Experiment as DandeLiionExperiment
 
 # third-party modules
-from pybamm import Experiment
+import pybamm
 from bpx import parse_bpx_file
-
+import numpy as np
 
 logger = logging.getLogger(__name__)
 
@@ -70,7 +71,7 @@ def test_solve_with_defaults(mock_convert, input_bpx):
     Test case for accessing prefetched data
     """
     mock_simulator = mock.MagicMock()
-    mock_convert.return_value = mock.Mock()
+    mock_convert.return_value = mock.Mock(), None
 
     experiment = mock.Mock(),
 
@@ -80,7 +81,34 @@ def test_solve_with_defaults(mock_convert, input_bpx):
         experiment=experiment
     )
 
-    input_bpx[1]['Parameterisation']["User-defined"]['DandeLiion: Experiment'] = mock_convert.return_value
+    input_bpx[1]['Parameterisation']["User-defined"]['DandeLiion: Experiment'], _ = mock_convert.return_value
+
+    assert len(mock_simulator.mock_calls) == 1
+    mock_simulator.submit.assert_called_once_with(
+        parameters=input_bpx[1],
+        is_blocking=True,
+    )
+    assert solution == mock_simulator.submit.return_value
+
+
+@mock.patch('dandeliion.client._convert_experiment')
+def test_solve_with_time_series(mock_convert, input_bpx):
+    """
+    Test case for accessing prefetched data
+    """
+    mock_simulator = mock.MagicMock()
+    mock_convert.return_value = mock.Mock(), mock.Mock()
+
+    experiment = mock.Mock(),
+
+    solution = solve(
+        simulator=mock_simulator,
+        params=input_bpx[0],
+        experiment=experiment
+    )
+
+    input_bpx[1]['Parameterisation']["User-defined"]['DandeLiion: Experiment'], \
+        input_bpx[1]['Parameterisation']["User-defined"]['DandeLiion: Time series input'] = mock_convert.return_value
 
     assert len(mock_simulator.mock_calls) == 1
     mock_simulator.submit.assert_called_once_with(
@@ -97,7 +125,7 @@ def test_solve_with_is_blocking(mock_convert, input_bpx, is_blocking):
     Test case for accessing prefetched data
     """
     mock_simulator = mock.MagicMock()
-    mock_convert.return_value = mock.Mock()
+    mock_convert.return_value = mock.Mock(), None
 
     experiment = mock.Mock(),
 
@@ -108,7 +136,7 @@ def test_solve_with_is_blocking(mock_convert, input_bpx, is_blocking):
         is_blocking=is_blocking,
     )
 
-    input_bpx[1]['Parameterisation']["User-defined"]['DandeLiion: Experiment'] = mock_convert.return_value
+    input_bpx[1]['Parameterisation']["User-defined"]['DandeLiion: Experiment'], _ = mock_convert.return_value
 
     assert len(mock_simulator.mock_calls) == 1
     mock_simulator.submit.assert_called_once_with(
@@ -124,7 +152,7 @@ def test_solve_with_bpx_dict(mock_convert, input_bpx):
     Test case for accessing prefetched data
     """
     mock_simulator = mock.MagicMock()
-    mock_convert.return_value = mock.Mock()
+    mock_convert.return_value = mock.Mock(), None
 
     experiment = mock.Mock(),
 
@@ -134,7 +162,7 @@ def test_solve_with_bpx_dict(mock_convert, input_bpx):
         experiment=experiment
     )
 
-    input_bpx[1]['Parameterisation']["User-defined"]['DandeLiion: Experiment'] = mock_convert.return_value
+    input_bpx[1]['Parameterisation']["User-defined"]['DandeLiion: Experiment'], _ = mock_convert.return_value
 
     assert len(mock_simulator.mock_calls) == 1
     mock_simulator.submit.assert_called_once_with(
@@ -150,7 +178,7 @@ def test_solve_with_bpx_obj(mock_convert, input_bpx):
     Test case for accessing prefetched data
     """
     mock_simulator = mock.MagicMock()
-    mock_convert.return_value = mock.Mock()
+    mock_convert.return_value = mock.Mock(), None
 
     experiment = mock.Mock(),
     bpx = parse_bpx_file(input_bpx[0])
@@ -161,7 +189,7 @@ def test_solve_with_bpx_obj(mock_convert, input_bpx):
         experiment=experiment
     )
 
-    input_bpx[1]['Parameterisation']["User-defined"]['DandeLiion: Experiment'] = mock_convert.return_value
+    input_bpx[1]['Parameterisation']["User-defined"]['DandeLiion: Experiment'], _  = mock_convert.return_value
 
     assert len(mock_simulator.mock_calls) == 1
     mock_simulator.submit.assert_called_once_with(
@@ -177,7 +205,7 @@ def test_solve_with_extra_params(mock_convert, input_bpx):
     Test case for accessing prefetched data
     """
     mock_simulator = mock.MagicMock()
-    mock_convert.return_value = mock.Mock()
+    mock_convert.return_value = mock.Mock(), None
 
     extra_params = {
         'a': 'some value',
@@ -191,7 +219,7 @@ def test_solve_with_extra_params(mock_convert, input_bpx):
         experiment=experiment,
         extra_params=extra_params,
     )
-    input_bpx[1]['Parameterisation']['User-defined']['DandeLiion: Experiment'] = mock_convert.return_value
+    input_bpx[1]['Parameterisation']['User-defined']['DandeLiion: Experiment'], _ = mock_convert.return_value
     for param, value in extra_params.items():
         input_bpx[1]['Parameterisation']['User-defined'][f'DandeLiion: {param}'] = value
 
@@ -208,7 +236,7 @@ def test_solve_with_invalid_params(invalid_input_bpx):
     Test case for solve behaviour with invalid params
     """
     mock_simulator = mock.MagicMock()
-    experiment = mock.Mock(),
+    experiment = mock.Mock()
 
     # params are not valid bpx
     with pytest.raises(Exception):
@@ -227,11 +255,11 @@ def test_solve_with_invalid_params(invalid_input_bpx):
         )
 
 
-def test__convert_experiment():
+def test__convert_experiment_with_pybamm():
     """
     Tests conversion of pybamm Experiment into parameter dict
     """
-    experiment = Experiment(
+    experiment = pybamm.Experiment(
         [
             (
                 "Discharge at 10 A for 200 seconds",
@@ -242,12 +270,123 @@ def test__convert_experiment():
         * 2,
         period="1 second",
     )
-    converted_experiment = _convert_experiment(experiment)
+    converted_experiment, time_series = _convert_experiment(experiment)
     assert converted_experiment['Instructions'] == [
         "Discharge at 10 A for 200 seconds",
         "Rest for 10 seconds",
         "Charge at 6 A for 100 seconds",
     ] * 2
+    assert time_series is None
     assert converted_experiment['Period'] == "1 second"
     assert converted_experiment['Temperature'] is None
     assert converted_experiment['Termination'] is None
+
+
+@pytest.mark.parametrize('drive_cycle,drive_cycle_x,drive_cycle_y',  [
+    (
+        'power',
+        ('Time [s]', np.linspace(0, 1, 60)),
+        ('Power [W]', 0.5 * np.sin(2 * np.pi * np.linspace(0, 1, 60))),
+    ),
+    (
+        'current',
+        ('Time [s]', np.linspace(0, 1, 60)),
+        ('Current [A]', np.linspace(0, 1, 60)),
+    ),
+])
+def test__convert_experiment_with_drive_cycle(drive_cycle, drive_cycle_x, drive_cycle_y):
+    """
+    Tests conversion of pybamm Experiment into parameter dict with drive cycles
+    """
+    drive_cycle_step = getattr(pybamm.step, drive_cycle)(np.column_stack([drive_cycle_x[1], drive_cycle_y[1]]))
+    
+    experiment = pybamm.Experiment(
+        [
+            (
+                "Discharge at 10 A for 200 seconds",
+                "Rest for 10 seconds",
+                "Charge at 6 A for 100 seconds",
+            ),
+            drive_cycle_step,
+        ]
+        * 2,
+        period="1 second",
+    )
+    converted_experiment, time_series = _convert_experiment(experiment)
+    assert converted_experiment['Instructions'] == [
+        "Discharge at 10 A for 200 seconds",
+        "Rest for 10 seconds",
+        "Charge at 6 A for 100 seconds",
+        "Time series",
+    ] * 2
+    np.testing.assert_equal(time_series, {
+        drive_cycle_x[0]: drive_cycle_x[1],
+        drive_cycle_y[0]: drive_cycle_y[1],
+    })
+    assert converted_experiment['Period'] == "1 second"
+    assert converted_experiment['Temperature'] is None
+    assert converted_experiment['Termination'] is None
+
+
+@pytest.mark.parametrize('test_steps,expected_exception', [
+    (
+        [pybamm.step.power(1.0, duration=1.0),],
+        TypeError,
+    ),
+    (
+        [pybamm.step.BaseStep(np.column_stack([np.linspace(0, 1, 60), np.linspace(0, 1, 60)])),],
+        TypeError,
+    ),
+    (
+        [pybamm.step.current(np.column_stack([np.linspace(0, 1, 60), np.linspace(0, 1, 60)]), duration=2.0),],
+        ValueError,
+    ),
+    (
+        [pybamm.step.current(np.column_stack([np.linspace(0, 1, 60), np.linspace(0, 1, 60)])),
+         pybamm.step.current(np.column_stack([np.linspace(0, 1, 30), np.linspace(0, 1, 30)])),],
+        NotImplementedError,
+    ),
+])
+def test__convert_experiment_with_pybamm_error(test_steps, expected_exception):
+    """
+    Tests conversion of invalid pybamm Experiment into parameter dict
+    """
+    experiment = pybamm.Experiment(
+        [
+            *test_steps,
+        ],
+        period="1 second",
+    )
+
+    with pytest.raises(expected_exception):
+        converted_experiment, time_series = _convert_experiment(experiment)
+
+
+def test__convert_experiment_without_pybamm():
+    """
+    Tests conversion of DandeLiion Experiment into parameter dict
+    """
+    experiment = DandeLiionExperiment(
+        [
+            (
+                "Discharge at 10 A for 200 seconds",
+                "Rest for 10 seconds",
+                "Charge at 6 A for 100 seconds",
+                "Time series",
+            )
+        ]
+        * 2,
+        period="1 second",
+    )
+    converted_experiment, time_series = _convert_experiment(experiment)
+    assert converted_experiment['Instructions'] == [
+        "Discharge at 10 A for 200 seconds",
+        "Rest for 10 seconds",
+        "Charge at 6 A for 100 seconds",
+        "Time series",
+    ] * 2
+    assert time_series is None
+    assert converted_experiment['Period'] == "1 second"
+    assert converted_experiment['Temperature'] is None
+    assert converted_experiment['Termination'] is None
+
