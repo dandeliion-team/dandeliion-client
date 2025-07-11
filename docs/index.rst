@@ -7,7 +7,7 @@
 DandeLiion Client documentation
 ===============================
 
-The DandeLiion client provides a PyBaMM-like python interface to run on a local or remote DandeLiion server instance.
+The DandeLiion client provides a PyBaMM-like python interface to run on local or remote DandeLiion server instances.
 
 Installation
 ============
@@ -24,44 +24,49 @@ The following code is an example for how to write a python script to run a simul
   import dandeliion.client as dandeliion
   import numpy as np
   import matplotlib.pyplot as plt
-  from pybamm import Experiment
 
-  api_url = "https://server-address"
-  api_key = "some_hash"
+  api_url = "https://api.dandeliion.com/v1"
+  api_key = "API KEY"  # Replace with your actual API key
   simulator = dandeliion.Simulator(api_url, api_key)
 
   # BPX file or already read-in valid BPX as dict or BPX object
-  params = 'example_bpx.json'
+  params = "BPX_file.json"
 
-  experiment = Experiment(
-    [
-        (
-            "Discharge at 10 A for 100 seconds",
-            "Rest for 10 seconds",
-            "Charge at 6 A for 100 seconds",
-        )
-    ]
-    * 2,
-    period="1 second",
+  experiment = dandeliion.Experiment(
+      [
+          (
+              "Discharge at 10 A for 100 seconds",
+              "Rest for 10 seconds",
+              "Charge at 6 A for 100 seconds",
+          )
+      ]
+      * 2,
+      period="1 second",
   )
 
   extra_params = {}
-  extra_params['Mesh'] = {"x_n": 16, "x_s": 8, "x_p": 16, "r_n": 16, "r_p": 16}
-  extra_params['Initial SOC'] = 1.0
+  extra_params["Mesh"] = {"x_n": 16, "x_s": 16, "x_p": 16, "r_n": 16, "r_p": 16}
+  extra_params["Initial SOC"] = 1.0
+
+  print("Validating parameters and the API key, then starting the simulation...")
 
   solution = dandeliion.solve(
-        simulator=simulator,
-        params=params,
-        experiment=experiment,
-        extra_params=extra_params,
+      simulator=simulator,
+      params=params,
+      experiment=experiment,
+      extra_params=extra_params,
   )
 
+  print("\nSolution status:", solution.status)
+  print("\nSolution log:", solution.log)
+
   # Print all available keys in the solution object
+  print("Available keys in the solution object:")
   for key in sorted(solution.keys()):
-    print(key)
+      print(key)
 
   # Print the final values of time, voltage, and temperature
-  print(f"Final time [s]: {solution['Time [s]'][-1]}")
+  print(f"\nFinal time [s]: {solution['Time [s]'][-1]}")
   print(f"Final voltage [V]: {solution['Voltage [V]'][-1]}")
   print(f"Final temperature [K]: {solution['Temperature [K]'][-1]}")
 
@@ -78,7 +83,7 @@ The following code is an example for how to write a python script to run a simul
   plt.tight_layout()
   plt.show()
 
-  # Concentration in the electrolyte vs `x` at the last time step
+  # Plot concentration in the electrolyte vs `x` at the last time step
   plt.plot(
       solution["Electrolyte x-coordinate [m]"] * 1e6,
       solution["Electrolyte concentration [mol.m-3]"][-1],
@@ -89,9 +94,16 @@ The following code is an example for how to write a python script to run a simul
   plt.legend()
   plt.show()
 
-  # If the user needs the solution at the `t_eval` times, the following code can be used (works only correctly on columns with timeline data)
-  # This is a linear interpolation with constant extrapolation
-  solution["Voltage [V]"](t=t_eval)
+  # If the user needs the solution at the `t_eval` times, the following code can be used
+  t_eval = np.arange(0, 20, 1)  # A list of output times
+  print("\nTime [s]\tVoltage [V]")
+  for t, voltage in zip(t_eval, solution["Voltage [V]"](t=t_eval)):
+      print(f"{t}\t{voltage}")
+
+  # Save the solution to a file and load it back
+  solution_file = 'test_solution.json'
+  solution.dump(solution_file)
+  restored_solution = dandeliion.Simulator.restore(solution_file, api_key=api_key)
 
 where the following classes & methods have been used:
 
@@ -104,6 +116,7 @@ where the following classes & methods have been used:
    :toctree: stubs
    :nosignatures:
 
+   dandeliion.client.Experiment
    dandeliion.client.Simulator
    dandeliion.client.Solution
    dandeliion.client.solve
