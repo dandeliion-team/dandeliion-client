@@ -16,7 +16,7 @@ All notable changes to this project will be documented in this file.
 - pybamm now optional dependency
 
 
-# [1.0.2]
+## [1.0.2]
 
 ### Added
 
