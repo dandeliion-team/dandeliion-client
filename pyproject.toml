@@ -16,7 +16,7 @@ classifiers = [
 ]
 dependencies = [
   "bpx",
-  "pybamm~=25.6.0",
+  "requests~=2.32.3",
   "python-socketio~=5.13.0",
   "websocket-client~=1.8.0",
 ]
@@ -53,6 +53,7 @@ docs = [
     "sphinx-gallery",
     "sphinx-hoverxref",
     "sphinx-docsearch",
+    "dandeliion-client[pybamm]",
 ]
 dev = [
     "nox",
@@ -65,6 +66,10 @@ dev = [
     "flake8-docstrings",
     "mypy",
     "pre-commit",
+    "dandeliion-client[pybamm]",
+]
+pybamm = [
+    "pybamm~=25.6.0",
 ]
 
 # [tool.pytest]
