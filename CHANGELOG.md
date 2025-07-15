@@ -3,8 +3,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.0]
 
-# [1.0.2]
+### Added
+
+- openssf scorecard workflow
+- static code testing
+- support for drive cycles
+
+### Changed
+
+- pybamm now optional dependency
+
+
+## [1.0.2]
 
 ### Added
 

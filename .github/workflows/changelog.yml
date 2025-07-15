@@ -5,11 +5,19 @@ on:
     branches:
       - "develop"
 
+permissions:
+  contents: read
+
 jobs:
   Check-Changelog:
     name: Check Changelog Action
     runs-on: ubuntu-latest
     steps:
-      - uses: tarides/changelog-check-action@v2
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@6c439dc8bdf85cadbbce9ed30d1c7b959517bc49 # v2.12.2
+        with:
+          egress-policy: audit
+
+      - uses: tarides/changelog-check-action@0189fc7eedec3ef3e9648c713908f6f2a6e99057 # v3
         with:
           changelog: CHANGELOG.md
