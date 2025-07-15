@@ -3,9 +3,10 @@ from typing import Union
 
 class Experiment:
     """
-    Class for experimental conditions under which to run the model. In general, a
-    list of operating conditions should be passed in. Each operating condition should
-    be a string.
+    Class for experimental conditions under which to run the model and linked to
+    ``dandeliion.client.Experiment`` instead if ``pybamm.experiment.Experiment`` is not present.
+    In general, a list of operating conditions should be passed in. Each operating condition
+    should be a string.
 
     Parameters
     ----------

@@ -116,7 +116,7 @@ where the following classes & methods have been used:
    :toctree: stubs
    :nosignatures:
 
-   dandeliion.client.Experiment
    dandeliion.client.Simulator
    dandeliion.client.Solution
    dandeliion.client.solve
+   dandeliion.client.experiment.Experiment
