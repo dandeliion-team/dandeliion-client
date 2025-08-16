@@ -78,8 +78,8 @@ List of all supported parameters (`extra_params` keys):
 | Parameter | Description |
 | --- | --- |
 | `'Mesh'` | Defines the number of mesh points in liquid and solid. Expects the following fields: `x_n`, `x_s`, `x_p`, `r_n`, `r_p`. Optional, all values default to `16`. Cannot be less than `4`. Mesh stretching factor: `alpha` (no implemented yet). See example above. |
-| `'Initial SOC'` | Defines the initial State of Charge of the cell (or pack, for the pack model). Should be in the interval [0, 1]. Default value is `1.0`. |
-| `'Initial voltage [V]'` | Defines the initial voltage of the cell (or pack, for the pack model). Should be in the interval [V_min, V_max], where V_min and V_max are defined in the cell section of the BPX file. If both the initial SOC and initial voltage are provided, the initial SOC will be used and a warning will be produced. |
+| `'Initial SOC'` | Defines the initial State of Charge of the cell (or pack, for the pack model). Should be in the interval [`0`, `1`]. Default value is `1.0`. |
+| `'Initial voltage [V]'` | Defines the initial voltage of the cell (or pack, for the pack model). Should be in the interval [`V_min`, `V_max`], where `V_min` and `V_max` are defined in the cell section of the BPX file. If both the initial SOC and initial voltage are provided, the initial SOC will be used and a warning will be produced. |
 | `'Time series input'` | Allows the user to define the input current or power as time series (see [Drive cycles](#drive-cycles)). |
 | `'Lumped thermal model'`| If this key is defined, the lumped thermal model will be used. The solver will read `"Specific heat capacity [J.K-1.kg-1]"`, `"Density [kg.m-3]"`, `"External surface area [m2]"`, `"Volume [m3]"` from the cell section of the BPX file. In addition, `"Heat transfer coefficient [W.m-2.K-1]"` extra parameter should be defined (see below). **Default model is isothermal.** |
 | `'Heat transfer coefficient [W.m-2.K-1]'` | Heat transfer coefficient for the lumped thermal model. Cannot be negative. |
@@ -97,7 +97,7 @@ The user can define the initial conditions in the input BPX file:
 
 ## Defining the model input
 
-Define the experiment in PyBaMM’s format, e.g.:
+Define the experiment in PyBaMM’s format, for example:
 
 ```python
 experiment = dandeliion.Experiment(
@@ -225,7 +225,7 @@ solution = dandeliion.solve(
 The `solve` method parameters:
 
 - `simulator` is the [`dandeliion.client.Simulator`](https://dandeliion-team.github.io/dandeliion-client/stubs/dandeliion.client.Simulator.html) object that stores the API key and URL, required.
-- `params` refers to the BPX file (or `dict` or object), required. See [Simulation parameters and models](https://www.notion.so/Simulation-parameters-and-models-1ec49a434f80807bbee7e2c36d4cda0e?pvs=21).
+- `params` refers to the BPX file (or `dict` or object), required. See [Simulation parameters and models](#simulation-parameters-and-models).
 - `experiment` is optional (”1C discharge for 1 hour or until the `"Lower voltage cut-off [V]"` from BPX” will be used by default).
 - `extra_params` is optional (initial conditions from the BPX, fully charged state, and single cell Newman model with constant temperature will be used by default).
 - `is_blocking` is optional (default is `True`). It determines whether the `solve` command is blocking until computation has finished or returns right away. In the latter case, the `Solution` object may still point to an unfinished run (its status can be checked by printing `solution.status`).
@@ -296,7 +296,7 @@ for key in sorted(solution.keys()):
 
 Currently available outputs:
 
-```python
+```txt
 Current [A]
 Electrolyte concentration [mol.m-3]
 Electrolyte potential [V]
