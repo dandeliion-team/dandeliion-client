@@ -8,6 +8,7 @@ All notable changes to this project will be documented in this file.
 ### Added
 
 - example of how to use the extra_resource parameter
+- detailed documentation to README
 
 ### Fixed
 
