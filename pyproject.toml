@@ -18,7 +18,7 @@ dependencies = [
   "bpx",
   "requests~=2.32.3",
   "python-socketio~=5.14.2",
-  "websocket-client~=1.8.0",
+  "websocket-client~=1.9.0",
 ]
 requires-python = ">=3.9"
 authors = [
