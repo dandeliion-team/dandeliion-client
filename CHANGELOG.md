@@ -8,6 +8,7 @@ All notable changes to this project will be documented in this file.
 ### Added
 
 - example of how to use the extra_resource parameter
+- sim status updated regularly pulled by client until first ws update detected
 
 ### Fixed
 
@@ -15,7 +16,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
--
+- websocket client will retry to connect on error
 
 ### Removed
 
