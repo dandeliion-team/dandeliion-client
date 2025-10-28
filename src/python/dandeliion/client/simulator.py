@@ -127,10 +127,9 @@ class Simulator:
             on_update=task_update_signal_hook,
         )
         run_id = prefetched_data['Run']['id']
-        client.subscribe(run_id, self.api_key)
         with cond:
+            client.subscribe(run_id, self.api_key)
             timeout = 5  # initial manual checks set for every 5 sec
-            logger.debug(client._app.namespaces)
             while prefetched_data['Run']['status'] in ['queued', 'running']:
                 # block until task update signalled
                 if cond.wait(timeout=timeout):  # not timed out i.e. comm successful

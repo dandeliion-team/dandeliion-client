@@ -49,6 +49,7 @@ class SimulatorWebSocketClient:
                 connected = True
             except socketio.exceptions.ConnectionError as ex:
                 logger.warning(f"Failed to establish initial connnection to server: {ex}")
+        logger.debug(self._app.namespaces)
         self._app.on(event='update', handler=on_update, namespace=self.namespace)
 
     def subscribe(self, id, api_key: str):
