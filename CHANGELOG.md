@@ -3,6 +3,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.0]
+
+### Added
+
+- example of how to use the extra_resource parameter
+- sim status updated regularly pulled by client until first ws update detected
+- detailed documentation to README
+
+### Changed
+
+- websocket client will retry to connect on error
+- various dependency updates
+
+
 ## [1.1.0]
 
 ### Added

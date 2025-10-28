@@ -21,8 +21,6 @@ import numpy as np
 
 __version__ = importlib.metadata.version('dandeliion-client')
 
-__version__ = importlib.metadata.version('dandeliion-client')
-
 
 def _convert_experiment(experiment: Experiment, time_series: dict = None) -> tuple[dict, dict]:
     """

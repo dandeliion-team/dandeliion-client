@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "dandeliion-client"
-version = "1.1.0"
+version = "1.2.0"
 description = "Client for accessing Dandeliion services"
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -17,8 +17,8 @@ classifiers = [
 dependencies = [
   "bpx",
   "requests~=2.32.3",
-  "python-socketio~=5.13.0",
-  "websocket-client~=1.8.0",
+  "python-socketio~=5.14.2",
+  "websocket-client~=1.9.0",
 ]
 requires-python = ">=3.9"
 authors = [

@@ -127,11 +127,18 @@ class Simulator:
             on_update=task_update_signal_hook,
         )
         run_id = prefetched_data['Run']['id']
-        client.subscribe(run_id, self.api_key)
         with cond:
+            client.subscribe(run_id, self.api_key)
+            timeout = 5  # initial manual checks set for every 5 sec
             while prefetched_data['Run']['status'] in ['queued', 'running']:
                 # block until task update signalled
-                cond.wait()
+                if cond.wait(timeout=timeout):  # not timed out i.e. comm successful
+                    timeout = None
+                else:
+                    prev_prefetched_data = prefetched_data['Run']['status']
+                    self.update_results(prefetched_data=prefetched_data, inline=True)
+                    if prev_prefetched_data != prefetched_data['Run']['status']:
+                        logger.info(f"[{prefetched_data['Run']['status']}]")
         # closing connection again
         client.close()
 
