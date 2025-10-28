@@ -1,0 +1,35 @@
+﻿dandeliion.client.Solution
+==========================
+
+.. currentmodule:: dandeliion.client
+
+.. autoclass:: Solution
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~Solution.__init__
+      ~Solution.dump
+      ~Solution.get
+      ~Solution.items
+      ~Solution.join
+      ~Solution.keys
+      ~Solution.values
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~Solution.log
+      ~Solution.status
+   
+   

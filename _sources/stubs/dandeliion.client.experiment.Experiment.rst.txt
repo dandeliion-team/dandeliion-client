@@ -1,0 +1,22 @@
+﻿dandeliion.client.experiment.Experiment
+=======================================
+
+.. currentmodule:: dandeliion.client.experiment
+
+.. autoclass:: Experiment
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~Experiment.__init__
+   
+   
+
+   
+   
+   

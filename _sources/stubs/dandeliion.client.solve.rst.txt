@@ -1,0 +1,6 @@
+﻿dandeliion.client.solve
+=======================
+
+.. currentmodule:: dandeliion.client
+
+.. autofunction:: solve

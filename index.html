@@ -1,0 +1,228 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DandeLiion Client documentation &mdash; DandeLiion Client 1.2.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=6efca38a"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="dandeliion.client.Simulator" href="stubs/dandeliion.client.Simulator.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="#" class="icon icon-home">
+            DandeLiion Client
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">DandeLiion Client documentation</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="stubs/dandeliion.client.Simulator.html">dandeliion.client.Simulator</a></li>
+<li class="toctree-l1"><a class="reference internal" href="stubs/dandeliion.client.Solution.html">dandeliion.client.Solution</a></li>
+<li class="toctree-l1"><a class="reference internal" href="stubs/dandeliion.client.solve.html">dandeliion.client.solve</a></li>
+<li class="toctree-l1"><a class="reference internal" href="stubs/dandeliion.client.experiment.Experiment.html">dandeliion.client.experiment.Experiment</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="#">DandeLiion Client</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="#" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">DandeLiion Client documentation</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/index.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="dandeliion-client-documentation">
+<h1>DandeLiion Client documentation<a class="headerlink" href="#dandeliion-client-documentation" title="Link to this heading"></a></h1>
+<p>The DandeLiion client provides a PyBaMM-like python interface to run on local or remote DandeLiion server instances.</p>
+<section id="installation">
+<h2>Installation<a class="headerlink" href="#installation" title="Link to this heading"></a></h2>
+<p>The DandeLiion client can be installed directly from pypi using pip with the following command:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">pip</span> <span class="n">install</span> <span class="n">dandeliion</span><span class="o">-</span><span class="n">client</span>
+</pre></div>
+</div>
+</section>
+<section id="example">
+<h2>Example<a class="headerlink" href="#example" title="Link to this heading"></a></h2>
+<p>The following code is an example for how to write a python script to run a simulation:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">dandeliion.client</span> <span class="k">as</span> <span class="nn">dandeliion</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+
+<span class="n">api_url</span> <span class="o">=</span> <span class="s2">&quot;https://api.dandeliion.com/v1&quot;</span>
+<span class="n">api_key</span> <span class="o">=</span> <span class="s2">&quot;API KEY&quot;</span>  <span class="c1"># Replace with your actual API key</span>
+<span class="n">simulator</span> <span class="o">=</span> <span class="n">dandeliion</span><span class="o">.</span><span class="n">Simulator</span><span class="p">(</span><span class="n">api_url</span><span class="p">,</span> <span class="n">api_key</span><span class="p">)</span>
+
+<span class="c1"># BPX file or already read-in valid BPX as dict or BPX object</span>
+<span class="n">params</span> <span class="o">=</span> <span class="s2">&quot;BPX_file.json&quot;</span>
+
+<span class="n">experiment</span> <span class="o">=</span> <span class="n">dandeliion</span><span class="o">.</span><span class="n">Experiment</span><span class="p">(</span>
+    <span class="p">[</span>
+        <span class="p">(</span>
+            <span class="s2">&quot;Discharge at 10 A for 100 seconds&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;Rest for 10 seconds&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;Charge at 6 A for 100 seconds&quot;</span><span class="p">,</span>
+        <span class="p">)</span>
+    <span class="p">]</span>
+    <span class="o">*</span> <span class="mi">2</span><span class="p">,</span>
+    <span class="n">period</span><span class="o">=</span><span class="s2">&quot;1 second&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">extra_params</span> <span class="o">=</span> <span class="p">{}</span>
+<span class="n">extra_params</span><span class="p">[</span><span class="s2">&quot;Mesh&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;x_n&quot;</span><span class="p">:</span> <span class="mi">16</span><span class="p">,</span> <span class="s2">&quot;x_s&quot;</span><span class="p">:</span> <span class="mi">16</span><span class="p">,</span> <span class="s2">&quot;x_p&quot;</span><span class="p">:</span> <span class="mi">16</span><span class="p">,</span> <span class="s2">&quot;r_n&quot;</span><span class="p">:</span> <span class="mi">16</span><span class="p">,</span> <span class="s2">&quot;r_p&quot;</span><span class="p">:</span> <span class="mi">16</span><span class="p">}</span>
+<span class="n">extra_params</span><span class="p">[</span><span class="s2">&quot;Initial SOC&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.0</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Validating parameters and the API key, then starting the simulation...&quot;</span><span class="p">)</span>
+
+<span class="n">solution</span> <span class="o">=</span> <span class="n">dandeliion</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span>
+    <span class="n">simulator</span><span class="o">=</span><span class="n">simulator</span><span class="p">,</span>
+    <span class="n">params</span><span class="o">=</span><span class="n">params</span><span class="p">,</span>
+    <span class="n">experiment</span><span class="o">=</span><span class="n">experiment</span><span class="p">,</span>
+    <span class="n">extra_params</span><span class="o">=</span><span class="n">extra_params</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Solution status:&quot;</span><span class="p">,</span> <span class="n">solution</span><span class="o">.</span><span class="n">status</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Solution log:&quot;</span><span class="p">,</span> <span class="n">solution</span><span class="o">.</span><span class="n">log</span><span class="p">)</span>
+
+<span class="c1"># Print all available keys in the solution object</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Available keys in the solution object:&quot;</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">solution</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+
+<span class="c1"># Print the final values of time, voltage, and temperature</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Final time [s]: </span><span class="si">{</span><span class="n">solution</span><span class="p">[</span><span class="s1">&#39;Time [s]&#39;</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Final voltage [V]: </span><span class="si">{</span><span class="n">solution</span><span class="p">[</span><span class="s1">&#39;Voltage [V]&#39;</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Final temperature [K]: </span><span class="si">{</span><span class="n">solution</span><span class="p">[</span><span class="s1">&#39;Temperature [K]&#39;</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+<span class="c1"># Plot current and voltage vs time</span>
+<span class="n">fig</span><span class="p">,</span> <span class="n">axs</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">8</span><span class="p">))</span>
+<span class="n">axs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">solution</span><span class="p">[</span><span class="s2">&quot;Time [s]&quot;</span><span class="p">],</span> <span class="n">solution</span><span class="p">[</span><span class="s2">&quot;Current [A]&quot;</span><span class="p">],</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;DandeLiion&quot;</span><span class="p">)</span>
+<span class="n">axs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">&quot;time [s]&quot;</span><span class="p">)</span>
+<span class="n">axs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s2">&quot;Current [A]&quot;</span><span class="p">)</span>
+<span class="n">axs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
+<span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">solution</span><span class="p">[</span><span class="s2">&quot;Time [s]&quot;</span><span class="p">],</span> <span class="n">solution</span><span class="p">[</span><span class="s2">&quot;Voltage [V]&quot;</span><span class="p">],</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;DandeLiion&quot;</span><span class="p">)</span>
+<span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">&quot;time [s]&quot;</span><span class="p">)</span>
+<span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s2">&quot;Voltage [V]&quot;</span><span class="p">)</span>
+<span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+
+<span class="c1"># Plot concentration in the electrolyte vs `x` at the last time step</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span>
+    <span class="n">solution</span><span class="p">[</span><span class="s2">&quot;Electrolyte x-coordinate [m]&quot;</span><span class="p">]</span> <span class="o">*</span> <span class="mf">1e6</span><span class="p">,</span>
+    <span class="n">solution</span><span class="p">[</span><span class="s2">&quot;Electrolyte concentration [mol.m-3]&quot;</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span>
+    <span class="n">label</span><span class="o">=</span><span class="s2">&quot;Dandeliion&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;x [$\mu$m]&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s2">&quot;Electrolyte conc. (end of experiment) [mol.m-3]&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+
+<span class="c1"># If the user needs the solution at the `t_eval` times, the following code can be used</span>
+<span class="n">t_eval</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">20</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>  <span class="c1"># A list of output times</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Time [s]</span><span class="se">\t</span><span class="s2">Voltage [V]&quot;</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">t</span><span class="p">,</span> <span class="n">voltage</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">t_eval</span><span class="p">,</span> <span class="n">solution</span><span class="p">[</span><span class="s2">&quot;Voltage [V]&quot;</span><span class="p">](</span><span class="n">t</span><span class="o">=</span><span class="n">t_eval</span><span class="p">)):</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">t</span><span class="si">}</span><span class="se">\t</span><span class="si">{</span><span class="n">voltage</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+<span class="c1"># Save the solution to a file and load it back</span>
+<span class="n">solution_file</span> <span class="o">=</span> <span class="s1">&#39;test_solution.json&#39;</span>
+<span class="n">solution</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">solution_file</span><span class="p">)</span>
+<span class="n">restored_solution</span> <span class="o">=</span> <span class="n">dandeliion</span><span class="o">.</span><span class="n">Simulator</span><span class="o">.</span><span class="n">restore</span><span class="p">(</span><span class="n">solution_file</span><span class="p">,</span> <span class="n">api_key</span><span class="o">=</span><span class="n">api_key</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>where the following classes &amp; methods have been used:</p>
+<div class="toctree-wrapper compound">
+</div>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="stubs/dandeliion.client.Simulator.html#dandeliion.client.Simulator" title="dandeliion.client.Simulator"><code class="xref py py-obj docutils literal notranslate"><span class="pre">dandeliion.client.Simulator</span></code></a></p></td>
+<td><p>Simulator class that stores authentication details and deals with job submission and result acquisition</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="stubs/dandeliion.client.Solution.html#dandeliion.client.Solution" title="dandeliion.client.Solution"><code class="xref py py-obj docutils literal notranslate"><span class="pre">dandeliion.client.Solution</span></code></a></p></td>
+<td><p>Dictionary-style class for the solutions of a simulation run returned by <code class="xref py py-meth docutils literal notranslate"><span class="pre">solve()</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="stubs/dandeliion.client.solve.html#dandeliion.client.solve" title="dandeliion.client.solve"><code class="xref py py-obj docutils literal notranslate"><span class="pre">dandeliion.client.solve</span></code></a></p></td>
+<td><p>Method for submitting/running a DandeLiion simulation.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="stubs/dandeliion.client.experiment.Experiment.html#dandeliion.client.experiment.Experiment" title="dandeliion.client.experiment.Experiment"><code class="xref py py-obj docutils literal notranslate"><span class="pre">dandeliion.client.experiment.Experiment</span></code></a></p></td>
+<td><p>Class for experimental conditions under which to run the model and linked to <code class="docutils literal notranslate"><span class="pre">dandeliion.client.Experiment</span></code> instead if <code class="docutils literal notranslate"><span class="pre">pybamm.experiment.Experiment</span></code> is not present.</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="stubs/dandeliion.client.Simulator.html" class="btn btn-neutral float-right" title="dandeliion.client.Simulator" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024-2025, DandeLiion Team.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
