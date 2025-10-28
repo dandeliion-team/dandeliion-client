@@ -9,6 +9,7 @@ All notable changes to this project will be documented in this file.
 
 - example of how to use the extra_resource parameter
 - sim status updated regularly pulled by client until first ws update detected
+- detailed documentation to README
 
 ### Fixed
 
