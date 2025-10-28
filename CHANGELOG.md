@@ -3,7 +3,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.2]
+## [1.2.0]
 
 ### Added
 
@@ -11,17 +11,10 @@ All notable changes to this project will be documented in this file.
 - sim status updated regularly pulled by client until first ws update detected
 - detailed documentation to README
 
-### Fixed
-
--
-
 ### Changed
 
 - websocket client will retry to connect on error
-
-### Removed
-
--
+- various dependency updates
 
 
 ## [1.1.0]
