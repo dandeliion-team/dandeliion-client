@@ -34,15 +34,28 @@ logger = logging.getLogger(__name__)
 
 
 class SimulatorWebSocketClient:
+    """Class that wrappes socketio.Client for use to communicate with Dandeliion API."""
 
     def __init__(self, url: tuple[str, str], on_update: Callable[[Any], None]):
+        """Construct and connect client."""
         server_url, self.namespace = url
+        logger.debug(f"Creating websocket client for url '{server_url}' and ns '{self.namespace}'")
         self._app = socketio.Client()
-        self._app.connect(server_url, namespaces=[self.namespace])
+        connected = False
+        while not connected:
+            try:
+                self._app.connect(server_url, namespaces=[self.namespace])
+                logger.debug(f"Websocket connection established: {self._app.sid}")
+                connected = True
+            except socketio.exceptions.ConnectionError as ex:
+                logger.warning(f"Failed to establish initial connnection to server: {ex}")
+        logger.debug(self._app.namespaces)
         self._app.on(event='update', handler=on_update, namespace=self.namespace)
 
     def subscribe(self, id, api_key: str):
+        """Subscribe to websocket room for simulation."""
         self._app.emit('subscribe', (id, api_key), namespace=self.namespace)
 
     def close(self):
+        """Shut down client."""
         self._app.shutdown()
