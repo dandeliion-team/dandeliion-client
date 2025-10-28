@@ -19,7 +19,7 @@ sys.path.insert(0, os.path.abspath('..'))
 project = 'DandeLiion Client'
 copyright = '2024-2025, DandeLiion Team'
 author = 'DandeLiion Team'
-release = '1.2'
+release = '1.2.0'
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
