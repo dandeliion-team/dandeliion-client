@@ -69,7 +69,7 @@ dev = [
     "dandeliion-client[pybamm]",
 ]
 pybamm = [
-    "pybamm~=25.6.0",
+    "pybamm~=25.12.2",
 ]
 
 # [tool.pytest]
