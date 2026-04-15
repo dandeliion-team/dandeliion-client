@@ -49,7 +49,8 @@ def input_bpx():
     filename = Path(__file__).parent / 'data' / 'input_bpx.json'
     with open(filename, 'r') as f:
         params = json.load(f)
-    params['Parameterisation']["User-defined"] = {}
+    if "User-defined" not in params['Parameterisation']:
+        params['Parameterisation']["User-defined"] = {}
     return filename, params
 
 
