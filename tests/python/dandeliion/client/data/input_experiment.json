@@ -78,7 +78,7 @@
                   "Transport efficiency": 0.3222
             },
             "User-defined": {
-	          "Thermal conductivity [W.m-1.K-1]": 8,
+	          "Thermal conductivity [W.m-1.K-1]": 8.,
                   "DandeLiion: Lumped": 0.0,
                   "DandeLiion: Experiment": {
                         "Instructions": ["Discharge at 1C until 3.8 V",
