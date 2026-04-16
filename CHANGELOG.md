@@ -11,7 +11,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
--
+- fixed tests/test data to work with updated BPX
 
 ### Changed
 
@@ -19,7 +19,7 @@ All notable changes to this project will be documented in this file.
 
 ### Removed
 
--
+- support for python < 3.10 (in line with BPX, etc.)
 
 
 ## [1.2.0]

@@ -1,20 +1,30 @@
 {
       "Header": {
-            "BPX": 0.3,
+            "BPX": "1.1",
             "Title": "About:Energy Gen1 Demo 21700 NMC811|graphite 5 Ah cell",
             "Description": "About:Energy Gen1 Demo 21700 NMC811|graphite 5 Ah cell physics-based parameterisation. This is a fictitious cell used for technology demonstration. Some data are taken from literature: Nyman et al. 2008 (doi:10.1016/j.electacta.2008.04.023); Chen et al. 2020 (doi:10.1149/1945-7111/ab9050); O'Regan et al. 2022 (doi:10.1016/j.electacta.2022.140700).",
             "Model": "DFN"
       },
+      "State": {
+	        "Initial conditions": {
+	            "Initial electrolyte concentration [mol.m-3]": 1000,
+		    "Initial temperature [K]": 298.15
+		},
+		"Thermal environment": {
+		    "Ambient temperature [K]": 298.15,
+		    "Heat transfer coefficient [W.m-2.K-1]": 0.0,
+		    "Initial state-of-charge": 1.0,
+		    "Initial hysteresis state: Positive electrode": 1.0,
+		    "Initial hysteresis state: Negative electrode": 1.0
+                }
+      },
       "Parameterisation": {
             "Cell": {
-                  "Ambient temperature [K]": 298.15,
-                  "Initial temperature [K]": 298.15,
                   "Reference temperature [K]": 298.15,
                   "Lower voltage cut-off [V]": 2.5,
                   "Upper voltage cut-off [V]": 4.2,
                   "Nominal cell capacity [A.h]": 5,
                   "Specific heat capacity [J.K-1.kg-1]": 761,
-                  "Thermal conductivity [W.m-1.K-1]": 8,
                   "Density [kg.m-3]": 3151,
                   "Electrode area [m2]": 0.10752,
                   "Number of electrode pairs connected in parallel to make a cell": 1,
@@ -22,7 +32,6 @@
                   "Volume [m3]": 2.42e-05
             },
             "Electrolyte": {
-                  "Initial concentration [mol.m-3]": 1000,
                   "Cation transference number": 0.2594,
                   "Conductivity [S.m-1]": "0.1297 * (x / 1000) ** 3 - 2.51 * (x / 1000) ** 1.5 + 3.329 * (x / 1000)",
                   "Diffusivity [m2.s-1]": "8.794e-11 * (x / 1000) ** 2 - 3.972e-10 * (x / 1000) + 4.862e-10",
@@ -69,9 +78,8 @@
                   "Transport efficiency": 0.3222
             },
             "User-defined": {
+	          "Thermal conductivity [W.m-1.K-1]": 8.0,
                   "DandeLiion: Lumped": 0.0,
-                  "DandeLiion: Heat transfer coefficient [W.m-2.K-1]": 0.0,
-                  "DandeLiion: Initial SOC": 1.0,
                   "DandeLiion: Experiment": {
                         "Instructions": ["Discharge at 1C until 3.8 V",
                                          "Hold at 3.8 V for 10 minutes",
