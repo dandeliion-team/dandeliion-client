@@ -34,6 +34,7 @@ from dandeliion.client import solve, _convert_experiment
 from dandeliion.client.experiment import Experiment as DandeLiionExperiment
 
 # third-party modules
+from copy import deepcopy
 import pybamm
 from bpx import parse_bpx_file
 import numpy as np
@@ -62,7 +63,8 @@ def invalid_input_bpx():
     filename = Path(__file__).parent / 'data' / 'invalid_input_bpx.json'
     with open(filename, 'r') as f:
         params = json.load(f)
-    params['Parameterisation']["User-defined"] = {}
+    if "User-defined" not in params['Parameterisation']:
+        params['Parameterisation']["User-defined"] = {}
     return filename, params
 
 
@@ -157,9 +159,11 @@ def test_solve_with_bpx_dict(mock_convert, input_bpx):
 
     experiment = mock.Mock(),
 
+    bpx_dict = deepcopy(input_bpx[1])
+
     solution = solve(
         simulator=mock_simulator,
-        params=input_bpx[1],
+        params=bpx_dict,
         experiment=experiment
     )
 

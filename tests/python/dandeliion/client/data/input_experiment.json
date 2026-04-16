@@ -1,6 +1,6 @@
 {
       "Header": {
-            "BPX": 1.1,
+            "BPX": "1.1",
             "Title": "About:Energy Gen1 Demo 21700 NMC811|graphite 5 Ah cell",
             "Description": "About:Energy Gen1 Demo 21700 NMC811|graphite 5 Ah cell physics-based parameterisation. This is a fictitious cell used for technology demonstration. Some data are taken from literature: Nyman et al. 2008 (doi:10.1016/j.electacta.2008.04.023); Chen et al. 2020 (doi:10.1149/1945-7111/ab9050); O'Regan et al. 2022 (doi:10.1016/j.electacta.2022.140700).",
             "Model": "DFN"
