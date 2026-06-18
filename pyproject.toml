@@ -16,7 +16,7 @@ classifiers = [
 ]
 dependencies = [
   "bpx",
-  "requests~=2.32.3",
+  "requests~=2.34.2",
   "python-socketio~=5.14.2",
   "websocket-client~=1.9.0",
 ]
