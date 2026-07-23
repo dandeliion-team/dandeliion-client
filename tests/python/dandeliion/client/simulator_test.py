@@ -28,11 +28,13 @@ import logging
 import json
 import copy
 import pytest
+from datetime import datetime, timezone
 from unittest import mock
 from pathlib import Path
 
 # custom modules
 from dandeliion.client.simulator import Simulator, Solution, DandeliionAPIException
+from dandeliion.client.exceptions import DandeliionTokenValidationError
 
 logger = logging.getLogger(__name__)
 
@@ -189,6 +191,111 @@ def test_submit_server_error(mock_post, input_extended_bpx, error):
     simulator = Simulator(api_url=mock_url, api_key=mock_api_key)
     with pytest.raises(DandeliionAPIException, match=f"Your request has failed: {error_code} - {expected_message}"):
         simulator.submit(input_extended_bpx, is_blocking=False)
+
+
+@mock.patch('dandeliion.client.simulator.requests.post')
+def test_submit_exposes_token_validation(mock_post, input_extended_bpx):
+    token_payload = {
+        "valid": True,
+        "status": "valid",
+        "expires_at": "2026-12-31T23:59:59Z",
+        "uses_remaining": 49,
+        "error": None,
+    }
+    mock_post.return_value = MockResponse(
+        json_data={
+            "Run": {"ws_status_url": "wss://example/ws", "id": "run_1"},
+            "Token": token_payload,
+        },
+        status_code=200,
+    )
+
+    solution = Simulator(api_url="https://api.example/v1", api_key="token").submit(
+        input_extended_bpx,
+        is_blocking=False,
+    )
+
+    assert solution.token_validation.valid is True
+    assert solution.token_validation.status == "valid"
+    assert solution.token_validation.expires_at == datetime(
+        2026, 12, 31, 23, 59, 59, tzinfo=timezone.utc
+    )
+    assert solution.token_validation.uses_remaining == 49
+    assert solution.token_validation.error is None
+
+
+@pytest.mark.parametrize(
+    ("status", "expires_at", "uses_remaining"),
+    [
+        ("invalid", None, None),
+        ("expired", "2026-01-01T00:00:00Z", 10),
+        ("deactivated", "2026-12-31T23:59:59Z", 10),
+        ("usage_exhausted", "2026-12-31T23:59:59Z", 0),
+        ("user_inactive", "2026-12-31T23:59:59Z", 10),
+    ],
+)
+@mock.patch('dandeliion.client.simulator.requests.post')
+def test_submit_raises_structured_token_error(
+    mock_post,
+    input_extended_bpx,
+    status,
+    expires_at,
+    uses_remaining,
+):
+    token_payload = {
+        "valid": False,
+        "status": status,
+        "expires_at": expires_at,
+        "uses_remaining": uses_remaining,
+        "error": status.replace("_", " "),
+    }
+    mock_post.return_value = MockResponse(
+        json_data={"error": token_payload["error"], "Token": token_payload},
+        status_code=403,
+        reason="Forbidden",
+    )
+
+    simulator = Simulator(api_url="https://api.example/v1", api_key="token")
+    with pytest.raises(DandeliionTokenValidationError) as raised:
+        simulator.submit(input_extended_bpx, is_blocking=False)
+
+    assert isinstance(raised.value, DandeliionAPIException)
+    assert raised.value.validation.status == status
+    assert raised.value.validation.uses_remaining == uses_remaining
+    if expires_at is None:
+        assert raised.value.validation.expires_at is None
+    else:
+        assert raised.value.validation.expires_at.tzinfo == timezone.utc
+
+
+@mock.patch('dandeliion.client.simulator.requests.post')
+def test_submit_validator_outage_remains_generic_api_error(mock_post, input_extended_bpx):
+    mock_post.return_value = MockResponse(
+        json_data={"error": "The token validator is unavailable"},
+        status_code=503,
+        reason="Service Unavailable",
+    )
+
+    simulator = Simulator(api_url="https://api.example/v1", api_key="token")
+    with pytest.raises(DandeliionAPIException) as raised:
+        simulator.submit(input_extended_bpx, is_blocking=False)
+
+    assert not isinstance(raised.value, DandeliionTokenValidationError)
+
+
+@mock.patch('dandeliion.client.simulator.requests.post')
+def test_submit_older_api_response_has_no_token_validation(mock_post, input_extended_bpx):
+    mock_post.return_value = MockResponse(
+        json_data={"Run": {"ws_status_url": "wss://example/ws", "id": "run_1"}},
+        status_code=200,
+    )
+
+    solution = Simulator(api_url="https://api.example/v1", api_key="token").submit(
+        input_extended_bpx,
+        is_blocking=False,
+    )
+
+    assert solution.token_validation is None
 
 
 @mock.patch('dandeliion.client.simulator.requests.get')

@@ -32,6 +32,7 @@ from collections.abc import Mapping
 
 # custom modules
 from .exceptions import DandeliionAPIException
+from .token import TokenValidation
 
 # third-party modules
 import numpy as np
@@ -186,6 +187,19 @@ class Solution(Mapping):
             str: contents of log file (runtime_log.txt)
         """
         return self._sim.get_log(self._data)
+
+    @property
+    def token_validation(self):
+        """Return token status, expiry, and post-submission remaining uses."""
+        payload = self._data.get("Token")
+        if payload is None:
+            return None
+        try:
+            return TokenValidation.from_dict(payload)
+        except (KeyError, TypeError, ValueError) as exc:
+            raise DandeliionAPIException(
+                "The API returned invalid token validation metadata"
+            ) from exc
 
     def dump(self, filepath: Union[str, Path]):
         """

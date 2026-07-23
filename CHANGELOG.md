@@ -7,7 +7,8 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
--
+- `TokenValidation` metadata on successful simulation submissions
+- `DandeliionTokenValidationError` with structured rejected-token details
 
 ### Fixed
 

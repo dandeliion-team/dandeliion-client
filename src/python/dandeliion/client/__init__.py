@@ -7,6 +7,8 @@ from collections.abc import Sequence
 # custom modules
 from .simulator import Simulator
 from .solution import Solution
+from .exceptions import DandeliionAPIException, DandeliionTokenValidationError
+from .token import TokenStatus, TokenValidation
 
 # third-party modules
 try:
@@ -18,6 +20,16 @@ except ModuleNotFoundError:
     __has_pybamm__ = False
 from bpx import parse_bpx_obj, parse_bpx_file, BPX
 import numpy as np
+
+__all__ = [
+    "DandeliionAPIException",
+    "DandeliionTokenValidationError",
+    "Simulator",
+    "Solution",
+    "TokenStatus",
+    "TokenValidation",
+    "solve",
+]
 
 __version__ = importlib.metadata.version('dandeliion-client')
 

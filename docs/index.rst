@@ -118,5 +118,7 @@ where the following classes & methods have been used:
 
    dandeliion.client.Simulator
    dandeliion.client.Solution
+   dandeliion.client.TokenValidation
+   dandeliion.client.DandeliionTokenValidationError
    dandeliion.client.solve
    dandeliion.client.experiment.Experiment

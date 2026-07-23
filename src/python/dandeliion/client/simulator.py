@@ -34,8 +34,9 @@ from typing import Optional, Union
 # custom modules
 from .tools.misc import update_dict
 from .websocket import SimulatorWebSocketClient
-from .exceptions import DandeliionAPIException
+from .exceptions import DandeliionAPIException, DandeliionTokenValidationError
 from .solution import Solution
+from .token import TokenValidation
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +52,16 @@ def get_error_message(response):
         # If response is not JSON (or expected field missing), fall back to reason text
         error_message = response.reason
     return error_message
+
+
+def get_token_validation(response):
+    """Extract typed token metadata when it is present and trustworthy."""
+    try:
+        payload = response.json()
+        token_payload = payload["Token"]
+        return TokenValidation.from_dict(token_payload)
+    except (KeyError, TypeError, ValueError):
+        return None
 
 
 @dataclass
@@ -83,9 +94,11 @@ class Simulator:
         headers = {'Authorization': f'Token {self.api_key}'}  # TODO adapt to server
         response = requests.post(url=self.api_url, json=parameters, headers=headers)
         if response.status_code >= 400:
-            raise DandeliionAPIException(
-                f"Your request has failed: {response.status_code} - {get_error_message(response)}"
-            )
+            message = f"Your request has failed: {response.status_code} - {get_error_message(response)}"
+            token_validation = get_token_validation(response)
+            if response.status_code == 403 and token_validation is not None and not token_validation.valid:
+                raise DandeliionTokenValidationError(message, token_validation)
+            raise DandeliionAPIException(message)
         response_json = response.json()
         data = update_dict(parameters, response_json, inline=False)
         if 'api_url' not in data['Run']:  # if not provided by server

@@ -54,6 +54,44 @@ api_key = "API_TOKEN"
 simulator = dandeliion.Simulator(api_url, api_key)
 ```
 
+## Token validation details
+
+New simulation submissions expose the token validation performed by the
+DandeLiion API. After a successful submission, the returned solution provides
+the token status, UTC expiry, and post-submission shared usage balance:
+
+```python
+solution = dandeliion.solve(
+    simulator=simulator,
+    params=params,
+    experiment=experiment,
+    is_blocking=False,
+)
+
+validation = solution.token_validation
+if validation is not None:  # None when using an older DandeLiion API
+    print(validation.status)
+    print(validation.expires_at)
+    print(validation.uses_remaining)
+```
+
+If a token is invalid, expired, deactivated, exhausted, or belongs to an
+inactive user, submission raises
+`dandeliion.DandeliionTokenValidationError`. Its `validation` property contains
+the same structured details:
+
+```python
+try:
+    solution = simulator.submit(parameters, is_blocking=False)
+except dandeliion.DandeliionTokenValidationError as exc:
+    print(exc.validation.status)
+    print(exc.validation.expires_at)
+    print(exc.validation.uses_remaining)
+```
+
+Validator-service outages remain regular `DandeliionAPIException` failures and
+do not include token metadata.
+
 ## Simulation parameters and models
 
 Define the battery cell parameters by providing the BPX file name (as a string or `pathlib.Path`), a valid BPX as a `dict`, or `BPX` object itself. For example:
