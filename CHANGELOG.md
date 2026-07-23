@@ -12,7 +12,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
--
+- Constrained BPX to the supported 0.5 release line
 
 ### Changed
 

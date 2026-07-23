@@ -15,7 +15,7 @@ classifiers = [
   "Intended Audience :: Science/Research",
 ]
 dependencies = [
-  "bpx",
+  "bpx~=0.5.0",
   "requests~=2.32.3",
   "python-socketio~=5.14.2",
   "websocket-client~=1.9.0",
