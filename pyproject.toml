@@ -22,10 +22,10 @@ dependencies = [
 ]
 requires-python = ">=3.9"
 authors = [
-  {name = "DandeLiion Team", email = "team@dandeliion.com"},
+  {name = "DandeLiion Technologies Limited", email = "team@dandeliion.com"},
 ]
 maintainers = [
-  {name = "DandeLiion Team", email = "team@dandeliion.com"},
+  {name = "DandeLiion Technologies Limited", email = "team@dandeliion.com"},
 ]
 
 [project.urls]

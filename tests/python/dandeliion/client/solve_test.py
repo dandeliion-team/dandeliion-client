@@ -5,7 +5,7 @@ Testing the solve routines in dandeliion.client
 """
 
 #
-# Copyright (C) 2024-2025 Dandeliion Team
+# Copyright (C) 2024-2026 DandeLiion Technologies Limited
 #
 # This library is free software; you can redistribute it and/or modify it under
 # the terms of the GNU Lesser General Public License as published by the Free
@@ -391,4 +391,3 @@ def test__convert_experiment_without_pybamm():
     assert converted_experiment['Period'] == "1 second"
     assert converted_experiment['Temperature'] is None
     assert converted_experiment['Termination'] is None
-
