@@ -22,6 +22,11 @@ All notable changes to this project will be documented in this file.
   targets the 26.7 release line
 - Project source licensing is consistently BSD-3-Clause
 
+### Fixed
+
+- `Solution.dump()` falls back to the selected-result stream when a deployment
+  returns 404 from its direct full-result route
+
 ### Removed
 
 - API v1, Socket.IO/WebSocket status handling, and v1 restore-file support

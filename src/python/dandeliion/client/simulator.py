@@ -53,6 +53,7 @@ BUNDLE_FORMAT = "dandeliion-client-solution"
 BUNDLE_VERSION = 2
 DEFAULT_LOG_LIMIT = 64 * 1024
 DOWNLOAD_CHUNK_SIZE = 64 * 1024
+MAX_SELECTED_FIELDS = 100
 
 
 def _require_mapping(value: Any, label: str) -> Mapping[str, Any]:
@@ -852,16 +853,45 @@ class Simulator:
         )
 
         result_response: requests.Response | None = None
+        is_full_result_response = False
         if solution._run["status"] == "succeeded":
             self._ensure_succeeded(solution)
-            result_response = self._request(
-                "GET",
-                solution._run["urls"]["result"],
-                expected_status={200},
-                headers={"Accept-Encoding": "identity"},
-                stream=True,
-                result_request=True,
-            )
+            result_url = solution._run["urls"]["result"]
+            try:
+                result_response = self._request(
+                    "GET",
+                    result_url,
+                    expected_status={200},
+                    headers={"Accept-Encoding": "identity"},
+                    stream=True,
+                    result_request=True,
+                )
+                is_full_result_response = True
+            except DandeliionAPIException as exc:
+                fields = solution._run["artifacts"]["solution_fields"]
+                if exc.status_code != 404 or not fields:
+                    raise
+                # Keep the direct file route as the preferred path. The
+                # selected endpoint is a streaming fallback for deployments
+                # whose front proxy cannot currently serve the full artifact.
+                if len(fields) > MAX_SELECTED_FIELDS:
+                    raise DandeliionAPIException(
+                        "The full-result route returned 404 and the result has more than "
+                        f"{MAX_SELECTED_FIELDS} fields, so it cannot be recovered through "
+                        "one selected-result stream.",
+                        status_code=exc.status_code,
+                        code="full_result_unavailable",
+                        request_id=exc.request_id,
+                    ) from exc
+                result_response = self._request(
+                    "GET",
+                    result_url,
+                    expected_status={200},
+                    headers={"Accept-Encoding": "identity"},
+                    params=[("field", field) for field in fields],
+                    stream=True,
+                    result_request=True,
+                )
             content_type = result_response.headers.get("Content-Type", "").split(";", 1)[0].strip().lower()
             if content_type != "application/json":
                 result_response.close()
@@ -905,7 +935,7 @@ class Simulator:
                                 "The result download ended before Content-Length bytes were received."
                             )
                     result_size = solution._run["artifacts"]["result_size"]
-                    if result_size is not None and transferred != result_size:
+                    if is_full_result_response and result_size is not None and transferred != result_size:
                         raise DandeliionAPIException("The result download size does not match run metadata.")
                 destination.write(b"}")
                 destination.flush()

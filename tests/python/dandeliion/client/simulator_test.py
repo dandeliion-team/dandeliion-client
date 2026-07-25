@@ -513,6 +513,59 @@ def test_dump_streams_atomic_v2_bundle_and_restores_offline(tmp_path):
     assert TOKEN not in target.read_text()
 
 
+def test_dump_falls_back_to_selected_stream_when_full_route_returns_404(tmp_path):
+    selected = b'{"Solution":{"Time [s]":[0,1],"Voltage [V]":[4.2,4.1]}}'
+    run = run_payload("succeeded", result_size=len(selected) + 100)
+    session = FakeSession(
+        FakeResponse(status_code=202, json_data=run),
+        FakeResponse(
+            status_code=200,
+            json_data={"offset": 0, "next_offset": 0, "eof": True, "text": ""},
+        ),
+        FakeResponse(status_code=404, json_data={"error": "not_found"}),
+        FakeResponse(
+            status_code=200,
+            body=selected,
+            headers={"Content-Type": "application/json"},
+            chunks=[selected[:11], selected[11:]],
+        ),
+    )
+    solution = Simulator(API_ROOT, TOKEN, _session=session).submit({}, is_blocking=False)
+    target = tmp_path / "solution.json"
+
+    solution.dump(target)
+
+    assert session.calls[2][2]["params"] is None
+    assert session.calls[3][2]["params"] == [
+        ("field", "Time [s]"),
+        ("field", "Voltage [V]"),
+    ]
+    assert session.calls[3][2]["headers"]["Accept-Encoding"] == "identity"
+    restored = Simulator.restore(target)
+    np.testing.assert_allclose(restored["Voltage [V]"], [4.2, 4.1])
+
+
+def test_dump_reports_when_full_route_fallback_exceeds_field_limit(tmp_path):
+    fields = [f"Field {index}" for index in range(101)]
+    session = FakeSession(
+        FakeResponse(
+            status_code=202,
+            json_data=run_payload("succeeded", fields=fields),
+        ),
+        FakeResponse(
+            status_code=200,
+            json_data={"offset": 0, "next_offset": 0, "eof": True, "text": ""},
+        ),
+        FakeResponse(status_code=404, json_data={"error": "not_found"}),
+    )
+    solution = Simulator(API_ROOT, TOKEN, _session=session).submit({}, is_blocking=False)
+
+    with pytest.raises(DandeliionAPIException) as raised:
+        solution.dump(tmp_path / "solution.json")
+    assert raised.value.code == "full_result_unavailable"
+    assert raised.value.status_code == 404
+
+
 def test_incomplete_bundle_requires_explicit_pair_to_reconnect(tmp_path):
     session = FakeSession(
         FakeResponse(status_code=202, json_data=run_payload("queued")),
