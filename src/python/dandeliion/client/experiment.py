@@ -1,4 +1,4 @@
-from typing import Union
+# SPDX-License-Identifier: BSD-3-Clause
 
 
 class Experiment:
@@ -24,10 +24,10 @@ class Experiment:
 
     def __init__(
         self,
-        operating_conditions: list[Union[str, tuple[str]]],
-        period: Union[str, None] = None,
-        temperature: Union[float, None] = None,
-        termination: Union[list[str], None] = None,
+        operating_conditions: list[str | tuple[str, ...]],
+        period: str | None = None,
+        temperature: float | str | None = None,
+        termination: str | list[str] | None = None,
     ):
         # Save arguments
         self.args = (

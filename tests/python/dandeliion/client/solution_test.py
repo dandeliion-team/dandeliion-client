@@ -1,210 +1,215 @@
-"""
-@file tests/python/dandeliion/client/simulator_test.py
+# SPDX-License-Identifier: BSD-3-Clause
 
-Testing the routines for dandeliion.client.Simulator
-"""
+from __future__ import annotations
 
-#
-# Copyright (C) 2024-2026 DandeLiion Technologies Limited
-#
-# This library is free software; you can redistribute it and/or modify it under
-# the terms of the GNU Lesser General Public License as published by the Free
-# Software Foundation; either version 3.0 of the License, or (at your option)
-# any later version.
-#
-# This library is distributed in the hope that it will be useful, but WITHOUT
-# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-# FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public License for more
-# details.
-#
-# You should have received a copy of the GNU Lesser General Public License
-# along with this library; if not, write to the Free Software Foundation, Inc.,
-# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
-#
-
-# built-in modules
-import logging
-import json
-import pytest
 from unittest import mock
-from pathlib import Path
 
-# custom modules
-from dandeliion.client.solution import Solution, InterpolatedArray, DandeliionAPIException
-
-# third-party modules
 import numpy as np
+import pytest
+from dandeliion.client import DandeliionAPIException
+from dandeliion.client.solution import InterpolatedArray, Solution
 
-logger = logging.getLogger(__name__)
-
-
-@pytest.fixture(scope='function')
-def mock_results():
-
-    with open(Path(__file__).parent / 'data' / 'output.json', 'r') as f:
-        return json.load(f)
+RUN_ID = "7ad965d1-7c66-47eb-b095-25a2c4c52f0f"
 
 
-@pytest.mark.parametrize('field', ['Time [s]', 'Electrolyte potential [V]'])
-def test_access_prefetched_data_column(field):
-    """
-    Test case for accessing prefetched data (without defined time column)
-    """
-    mock_simulator = mock.MagicMock()
-    with open(Path(__file__).parent / 'data' / 'output.json', 'r') as f:
-        prefetched_data = json.load(f)
-
-    solution = Solution(sim=mock_simulator, prefetched_data=prefetched_data)
-    data = solution[field]
-    assert len(mock_simulator.mock_calls) == 0
-    assert np.array_equal(data, prefetched_data['Solution'][field])
-    assert not isinstance(data, InterpolatedArray)
-
-
-@pytest.mark.parametrize('field,valid', [('Current [A]', True), ('Electrolyte potential [V]', False), ('Electrolyte x-coordinate [m]', False)])
-def test_access_prefetched_data_column_with_time_column(field, valid):
-    """
-    Test case for accessing prefetched data with defined time column (with valid time series and without)
-    """
-    mock_simulator = mock.MagicMock()
-    with open(Path(__file__).parent / 'data' / 'output.json', 'r') as f:
-        prefetched_data = json.load(f)
-
-    solution = Solution(sim=mock_simulator, prefetched_data=prefetched_data, time_column='Time [s]')
-    data = solution[field]
-    assert len(mock_simulator.mock_calls) == 0
-    assert np.array_equal(data, prefetched_data['Solution'][field])
-    assert isinstance(data, InterpolatedArray)
-    if valid:
-        solution[field](t=42)
-    else:
-        with pytest.raises(ValueError):
-            solution[field](t=42)
+def run(status="succeeded", fields=None):
+    return {
+        "id": RUN_ID,
+        "status": status,
+        "backend": "lambda",
+        "error_code": "",
+        "error_message": "",
+        "portal_validation": {
+            "valid": True,
+            "status": "valid",
+            "expires_at": "2027-01-01T00:00:00Z",
+            "uses_remaining": 2,
+            "error": None,
+        },
+        "artifacts": {
+            "available": status == "succeeded",
+            "result_size": 1,
+            "solution_fields": fields or ["Time [s]", "Voltage [V]"],
+            "expires_at": None,
+            "purged_at": None,
+        },
+        "urls": {
+            "self": "self",
+            "result": "result",
+            "log": "log",
+            "cancel": "cancel",
+        },
+    }
 
 
-def test_access_non_prefetched_data_column():
-    """
-    Test case for accessing non-prefetched data
-    """
-    with open(Path(__file__).parent / 'data' / 'output.json', 'r') as f:
-        prefetched_data = json.load(f)
-
-    solution_data = prefetched_data.pop('Solution')
-    prefetched_data['Solution'] = {name: None for name, _ in solution_data.items()}
-
-    field = "Time [s]"
-
-    def mock_update(data, keys, inline=True):
-        for key in keys:
-            data['Solution'][key] = solution_data[key]
-
-    mock_simulator = mock.MagicMock()
-    mock_simulator.update_results = mock_update
-
-    solution = Solution(sim=mock_simulator, prefetched_data=prefetched_data)
-    data = solution[field]
-    assert np.array_equal(data, solution_data[field])
+def simulator_with_fields():
+    simulator = mock.MagicMock()
+    simulator._fetch_fields.return_value = {
+        "Time [s]": np.array([0.0, 1.0, 2.0]),
+        "Voltage [V]": np.array([4.2, 4.1, 4.0]),
+    }
+    return simulator
 
 
-def test_access_non_existent_data_column():
-    """
-    Test case for accessing non-existent result column
-    """
-    mock_simulator = mock.MagicMock()
-    with open(Path(__file__).parent / 'data' / 'output.json', 'r') as f:
-        prefetched_data = json.load(f)
+def test_mapping_fetches_only_missing_fields_and_caches():
+    simulator = simulator_with_fields()
+    solution = Solution(simulator, run(), time_column="Time [s]")
 
-    solution = Solution(sim=mock_simulator, prefetched_data=prefetched_data)
-    field = "Non-Existing Field"
+    first = solution["Voltage [V]"]
+    second = solution["Voltage [V]"]
+
+    assert isinstance(first, InterpolatedArray)
+    assert first(t=0.5) == pytest.approx(4.15)
+    np.testing.assert_allclose(second, first)
+    simulator._fetch_fields.assert_called_once_with(
+        solution,
+        ["Time [s]", "Voltage [V]"],
+    )
+    assert list(solution) == ["Time [s]", "Voltage [V]"]
+    assert len(solution) == 2
+
+
+def test_returned_arrays_do_not_mutate_cached_values():
+    simulator = simulator_with_fields()
+    solution = Solution(simulator, run(), time_column="Time [s]")
+    values = solution["Voltage [V]"]
+    values[0] = 0
+    assert solution["Voltage [V]"][0] == pytest.approx(4.2)
+
+
+def test_interpolated_array_preserves_metadata_on_views():
+    values = InterpolatedArray([0, 1, 2], [4.2, 4.1, 4.0])
+    sliced = values[1:]
+    assert sliced.t is not None
+    np.testing.assert_array_equal(sliced.t, [1, 2])
+    assert sliced(t=1.5) == pytest.approx(4.05)
+
+
+def test_multidimensional_fields_return_plain_arrays():
+    simulator = mock.MagicMock()
+    simulator._fetch_fields.return_value = {
+        "Time [s]": np.array([0.0, 1.0]),
+        "Field": np.array([[1.0, 2.0], [3.0, 4.0]]),
+    }
+    solution = Solution(
+        simulator,
+        run(fields=["Time [s]", "Field"]),
+        time_column="Time [s]",
+    )
+    assert not isinstance(solution["Field"], InterpolatedArray)
+
+
+def test_unknown_and_not_ready_fields_raise_clear_errors():
+    simulator = simulator_with_fields()
+    solution = Solution(simulator, run(), time_column="Time [s]")
     with pytest.raises(KeyError):
-        solution[field]
+        _ = solution["Unknown"]
+
+    queued = run("queued")
+    simulator._get_status.return_value = "queued"
+    with pytest.raises(DandeliionAPIException, match="Solution not ready"):
+        _ = Solution(simulator, queued)["Voltage [V]"]
 
 
-@pytest.mark.parametrize("fct,args", [('keys', []), ('items', []), ('values', []),  ('__iter__', []), ])
-@mock.patch('dandeliion.client.solution.Solution._init_solution')
-def test_dict_functions(mock_init, fct, args):
-    """
-    Test case for various dict functions for solutions (keys, values, items, etc)
-    """
-    mock_simulator = mock.MagicMock()
-    with open(Path(__file__).parent / 'data' / 'output.json', 'r') as f:
-        prefetched_data = json.load(f)
+def test_status_log_join_cancel_and_dump_delegate():
+    simulator = mock.MagicMock()
+    simulator._get_status.return_value = "running"
+    simulator._get_log.return_value = "log"
+    simulator._cancel.return_value = "cancel_requested"
+    solution = Solution(simulator, run("running"))
 
-    solution = Solution(sim=mock_simulator, prefetched_data=prefetched_data)
-    mock_init.assert_not_called()
-    if fct == 'values':
-        assert np.all([np.array_equal(x, y) for x, y in zip(
-            list(getattr(prefetched_data['Solution'], fct)(*args)),
-            list(getattr(solution, fct)(*args)),
-        )])
-    elif fct == 'items':
-        assert np.all([np.array_equal(x, y) and k1 == k2 for (k1, x), (k2, y) in zip(
-            list(getattr(prefetched_data['Solution'], fct)(*args)),
-            list(getattr(solution, fct)(*args)),
-        )])
-    else:
-        assert list(getattr(prefetched_data['Solution'], fct)(*args)) == list(getattr(solution, fct)(*args))
-    mock_init.assert_not_called()
+    assert solution.status == "running"
+    assert solution.log == "log"
+    solution.join(timeout=12)
+    assert solution.cancel() == "cancel_requested"
+    solution.dump("solution.json")
+
+    simulator._get_status.assert_called_once_with(solution)
+    simulator._get_log.assert_called_once_with(solution)
+    simulator._join.assert_called_once_with(solution, 12)
+    simulator._cancel.assert_called_once_with(solution)
+    simulator._dump.assert_called_once_with(solution, "solution.json")
 
 
-@pytest.mark.parametrize("fct,args", [('keys', []), ('items', []), ('values', []),  ('__iter__', []),])
-@mock.patch('dandeliion.client.solution.Solution._init_solution')
-def test_dict_functions_with_init(mock_init, fct, args):
-    """
-    Test case for various dict functions for solutions with uninitialised solutions (so initialising first)
-    """
-    mock_simulator = mock.MagicMock()
-    prefetched_data = {}
-
-    def mock_init_solution():
-        prefetched_data['Solution'] = {}
-
-    with mock.patch("dandeliion.client.solution.Solution._init_solution", wraps=mock_init_solution) as mock_init:
-        solution = Solution(sim=mock_simulator, prefetched_data=prefetched_data)
-        mock_init.assert_not_called()
-        list(getattr(solution, fct)(*args))
-        mock_init.assert_called_once_with()
-
-
-def test_init_solution():
-    """
-    Test case for various dict functions for solutions with uninitialised solutions (so initialising first)
-    """
-    mock_simulator = mock.MagicMock()
-    prefetched_data = {'Solution': None}
-
-    solution = Solution(sim=mock_simulator, prefetched_data=prefetched_data)
-    with pytest.raises(DandeliionAPIException):
-        solution._init_solution()
-    mock_simulator.update_results.assert_called_once_with(
-        prefetched_data,
-        inline=True,
+def test_token_validation_and_identifiers():
+    solution = Solution(
+        simulator_with_fields(),
+        run(),
+        idempotency_key="request-0001",
     )
+    assert solution.run_id == RUN_ID
+    assert solution.idempotency_key == "request-0001"
+    assert solution.token_validation.status == "valid"
+    assert solution.token_validation.uses_remaining == 2
 
 
-def test_status():
-    """
-    Test case for various dict functions for solutions with uninitialised solutions (so initialising first)
-    """
-    mock_simulator = mock.MagicMock()
-    prefetched_data = mock.Mock(spec=dict)
+def test_plain_array_mode_and_interpolation_validation():
+    simulator = simulator_with_fields()
+    solution = Solution(simulator, run(), time_column=None)
+    values = solution["Voltage [V]"]
+    assert isinstance(values, np.ndarray)
+    assert not isinstance(values, InterpolatedArray)
 
-    solution = Solution(sim=mock_simulator, prefetched_data=prefetched_data)
-    assert solution.status == mock_simulator.get_status.return_value
-    mock_simulator.get_status.assert_called_once_with(
-        prefetched_data
+    with pytest.raises(ValueError, match="one-dimensional"):
+        InterpolatedArray([0, 1], [[1, 2], [3, 4]])
+    with pytest.raises(ValueError, match="same length"):
+        InterpolatedArray([0], [1, 2])
+    with pytest.raises(ValueError, match="one-dimensional"):
+        InterpolatedArray([0, 1], [1, 2]).reshape((1, 2))(t=0.5)
+
+
+def test_missing_time_field_and_invalid_field_metadata():
+    simulator = mock.MagicMock()
+    simulator._fetch_fields.return_value = {"Voltage [V]": np.array([4.2])}
+    solution = Solution(
+        simulator,
+        run(fields=["Voltage [V]"]),
+        time_column="Time [s]",
     )
+    with pytest.raises(DandeliionAPIException, match="required time"):
+        _ = solution["Voltage [V]"]
+
+    invalid = run()
+    invalid["artifacts"]["solution_fields"] = "invalid"
+    with pytest.raises(DandeliionAPIException, match="invalid solution fields"):
+        len(Solution(simulator, invalid))
 
 
-def test_log():
-    """
-    Test case for accessing the log property of a solution instance.
-    """
-    mock_simulator = mock.MagicMock()
-    prefetched_data = mock.Mock(spec=dict)
+def test_invalid_or_absent_token_metadata():
+    no_token = run()
+    no_token["portal_validation"] = {}
+    assert Solution(simulator_with_fields(), no_token).token_validation is None
 
-    solution = Solution(sim=mock_simulator, prefetched_data=prefetched_data)
-    assert solution.log == mock_simulator.get_log.return_value
-    mock_simulator.get_log.assert_called_once_with(
-        prefetched_data
+    bad_token = run()
+    bad_token["portal_validation"] = {"valid": True}
+    with pytest.raises(DandeliionAPIException, match="invalid token"):
+        _ = Solution(simulator_with_fields(), bad_token).token_validation
+
+
+def test_local_result_errors_and_cached_load(tmp_path):
+    simulator = simulator_with_fields()
+    missing_path = tmp_path / "missing.json"
+    solution = Solution(
+        simulator,
+        run(),
+        bundle_path=missing_path,
+        local_result=True,
+        time_column="Time [s]",
     )
+    with pytest.raises(DandeliionAPIException, match="invalid solution data"):
+        _ = solution["Voltage [V]"]
+
+    omitted = tmp_path / "omitted.json"
+    omitted.write_text('{"result":{"Solution":{"Time [s]":[0]}}}')
+    solution = Solution(
+        simulator,
+        run(),
+        bundle_path=omitted,
+        local_result=True,
+        time_column="Time [s]",
+    )
+    with pytest.raises(DandeliionAPIException, match="omits"):
+        _ = solution["Voltage [V]"]
+
+    solution._fields["Time [s]"] = np.array([0.0])
+    solution._load_fields(["Time [s]"])

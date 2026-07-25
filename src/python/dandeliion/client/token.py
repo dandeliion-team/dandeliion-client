@@ -1,9 +1,10 @@
 """Public token-validation metadata returned by the DandeLiion API."""
 
+# SPDX-License-Identifier: BSD-3-Clause
+
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Literal, Optional
-
+from typing import Literal, cast
 
 TokenStatus = Literal[
     "valid",
@@ -32,9 +33,9 @@ class TokenValidation:
 
     valid: bool
     status: TokenStatus
-    expires_at: Optional[datetime]
-    uses_remaining: Optional[int]
-    error: Optional[str]
+    expires_at: datetime | None
+    uses_remaining: int | None
+    error: str | None
 
     @classmethod
     def from_dict(cls, payload):
@@ -64,9 +65,7 @@ class TokenValidation:
                 raise ValueError("Token expiry must include a timezone")
 
         if uses_remaining is not None and (
-            not isinstance(uses_remaining, int)
-            or isinstance(uses_remaining, bool)
-            or uses_remaining < 0
+            not isinstance(uses_remaining, int) or isinstance(uses_remaining, bool) or uses_remaining < 0
         ):
             raise ValueError("Token uses remaining must be a non-negative integer")
         if error is not None and not isinstance(error, str):
@@ -74,7 +73,7 @@ class TokenValidation:
 
         return cls(
             valid=valid,
-            status=status,
+            status=cast(TokenStatus, status),
             expires_at=parsed_expiry,
             uses_remaining=uses_remaining,
             error=error,
