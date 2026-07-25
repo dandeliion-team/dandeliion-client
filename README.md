@@ -21,7 +21,7 @@ The DandeLiion client is a client software written in Python to submit/run Dande
 pip install dandeliion-client
 ```
 
-**NOTE:** `dandeliion-client` requires Python 3.9 and higher.
+**NOTE:** DandeLiion client 2.0 supports Python 3.10 through 3.13.
 
 As of client version 1.1, `pybamm` is an optional dependency and will only be installed if you run:
 
@@ -49,10 +49,46 @@ dandeliion.__version__
 Create an instance of [`dandeliion.client.Simulator`](https://dandeliion-team.github.io/dandeliion-client/stubs/dandeliion.client.Simulator.html), providing the API URL and API token:
 
 ```python
-api_url = "https://api.dandeliion.com/v1"
+api_url = "https://api.dandeliion.com"
 api_key = "API_TOKEN"
 simulator = dandeliion.Simulator(api_url, api_key)
 ```
+
+Client 2.0 communicates exclusively with DandeLiion API v2. The service root,
+`/api/v2`, or the complete `/api/v2/runs` URL may be supplied. Legacy `/v1`
+URLs are rejected.
+
+Transport settings are keyword-only. The defaults use three total attempts,
+explicit connect/read timeouts, and polling backoff from one to ten seconds:
+
+```python
+simulator = dandeliion.Simulator(
+    api_url,
+    api_key,
+    request_timeout=(3.05, 30),
+    result_timeout=(3.05, 300),
+    poll_interval=1,
+    max_poll_interval=10,
+    max_attempts=3,
+)
+```
+
+Every submission receives an idempotency key. The client generates one by
+default and reuses it for bounded transport retries, or the caller can provide
+a stable key:
+
+```python
+solution = simulator.submit(
+    parameters,
+    is_blocking=False,
+    idempotency_key="analysis-batch-0001",
+)
+```
+
+If a response is lost, submitting the same JSON and key returns the original
+run without consuming a second Token Portal use. Reusing a key with different
+input raises `DandeliionAPIException` with
+`code == "idempotency_conflict"`.
 
 ## Token validation details
 
@@ -69,7 +105,7 @@ solution = dandeliion.solve(
 )
 
 validation = solution.token_validation
-if validation is not None:  # None when using an older DandeLiion API
+if validation is not None:
     print(validation.status)
     print(validation.expires_at)
     print(validation.uses_remaining)
@@ -89,8 +125,11 @@ except dandeliion.DandeliionTokenValidationError as exc:
     print(exc.validation.uses_remaining)
 ```
 
-Validator-service outages remain regular `DandeliionAPIException` failures and
-do not include token metadata.
+Other API failures remain `DandeliionAPIException` instances. They expose
+structured `status_code`, `code`, `message`, `request_id`,
+`authorization_request_id`, `retry_after`, and `idempotency_key` attributes. An
+`authorization_unknown` response is never automatically retried; provide its
+`authorization_request_id` to support for reconciliation.
 
 ## Simulation parameters and models
 
@@ -106,9 +145,9 @@ Define a dictionary of extra parameters outside the BPX standard, such as mesh, 
 
 ```python
 extra_params = {}
-extra_params['Mesh'] = {"x_n": 16, "x_s": 16, "x_p": 16, "r_n": 16, "r_p": 16}
-extra_params['Initial SOC'] = 1.0
-extra_params['Lumped thermal model'] = 1.0  # Sets lumped thermal model
+extra_params["Mesh"] = {"x_n": 16, "x_s": 16, "x_p": 16, "r_n": 16, "r_p": 16}
+extra_params["Initial SOC"] = 1.0
+extra_params["Lumped thermal model"] = 1.0  # Sets lumped thermal model
 ```
 
 List of all supported parameters (`extra_params` keys):
@@ -139,21 +178,21 @@ Define the experiment in PyBaMM’s format, for example:
 
 ```python
 experiment = dandeliion.Experiment(
-  [
-    (
-      "Discharge at 1C until 3.8 V",
-      "Hold at 3.8 V for 10 minutes (5 second period)",
-      "Rest for 300 seconds",
-      "Charge at 2000 mA for 1 hour or until 4.0 V",
-      "Rest for 5 min",
-      "Discharge at 20W for 25 minutes or until 2.5V",
-      "Rest for 300 s (1 second period)",
-      "Charge at C/2 until 4.0 V (0.5 min period)",
-      "Hold at 4.0V for 0.1 hr (1s period)"
-    )
-  ]
-  * 2,
-  period = "10 s",
+    [
+        (
+            "Discharge at 1C until 3.8 V",
+            "Hold at 3.8 V for 10 minutes (5 second period)",
+            "Rest for 300 seconds",
+            "Charge at 2000 mA for 1 hour or until 4.0 V",
+            "Rest for 5 min",
+            "Discharge at 20W for 25 minutes or until 2.5V",
+            "Rest for 300 s (1 second period)",
+            "Charge at C/2 until 4.0 V (0.5 min period)",
+            "Hold at 4.0V for 0.1 hr (1s period)",
+        )
+    ]
+    * 2,
+    period="10 s",
 )
 ```
 
@@ -184,15 +223,11 @@ Define DandeLiion experiment with the `"Time Series"` instruction, for example:
 
 ```python
 experiment = dandeliion.Experiment(
-  [
-    (
-      "Discharge at 1C until 3.8 V",
-    ),
-    (
-      "Time series",
-    ) * 3,
-  ],
-  period = "10 s",
+    [
+        ("Discharge at 1C until 3.8 V",),
+        ("Time series",) * 3,
+    ],
+    period="10 s",
 )
 ```
 
@@ -208,9 +243,9 @@ Finally, pass the time series to the client by using `extra_params` dictionary:
 
 ```python
 # Current vs time
-extra_params['Time series input'] = {
-  "Time [s]": drive_cycle[:, 0].tolist(),
-  "Current [A]": drive_cycle[:, 1].tolist(),
+extra_params["Time series input"] = {
+    "Time [s]": drive_cycle[:, 0].tolist(),
+    "Current [A]": drive_cycle[:, 1].tolist(),
 }
 ```
 
@@ -218,9 +253,9 @@ or
 
 ```python
 # Power vs time
-extra_params['Time series input'] = {
-  "Time [s]": drive_cycle[:, 0].tolist(),
-  "Power [W]": -drive_cycle[:, 1].tolist(),
+extra_params["Time series input"] = {
+    "Time [s]": drive_cycle[:, 0].tolist(),
+    "Power [W]": -drive_cycle[:, 1].tolist(),
 }
 ```
 
@@ -232,15 +267,11 @@ Define time series in the PyBaMM experiment:
 
 ```python
 experiment = pybamm.Experiment(
-  [
-    (
-      "Discharge at 1C until 3.8 V",
-    ),
-    (
-      pybamm.step.current(drive_cycle),
-    ) * 3,
-  ],
-  period = "10 s",
+    [
+        ("Discharge at 1C until 3.8 V",),
+        (pybamm.step.current(drive_cycle),) * 3,
+    ],
+    period="10 s",
 )
 ```
 
@@ -252,11 +283,7 @@ Start the simulation in the cloud using [`dandeliion.client.solve`](https://dand
 
 ```python
 solution = dandeliion.solve(
-    simulator=simulator,
-    params=params,
-    experiment=experiment,
-    extra_params=extra_params,
-    is_blocking=True
+    simulator=simulator, params=params, experiment=experiment, extra_params=extra_params, is_blocking=True
 )
 ```
 
@@ -282,8 +309,11 @@ Possible `solution.status` values:
 | --- | --- |
 | `queued`  | The simulation is in the queue and will be started as soon as possible |
 | `running` | The simulation is currently running (use `solution.log` to get more details) |
-| `success` | The simulation completed successfully |
+| `cancel_requested` | Cancellation has been requested and the provider is stopping |
+| `succeeded` | The simulation completed successfully |
 | `failed`  | The simulation has failed. Print `solution.log` for more details. |
+| `cancelled` | The simulation was cancelled |
+| `timed_out` | The simulation exceeded its backend runtime limit |
 
 To get the simulation log, which can contain warnings, error messages, and other simulation-related information, use:
 
@@ -292,6 +322,17 @@ print(solution.log)
 ```
 
 This can be called during the simulation (in non-blocking mode).
+
+Cancel a queued or running simulation with:
+
+```python
+status = solution.cancel()
+print(status)  # "cancel_requested" or "cancelled"
+```
+
+Cancellation is idempotent. A running Lambda simulation may continue at the
+provider after the public run becomes `cancelled`; its later output is not
+made available.
 
 ## Running the simulation in non-blocking mode
 
@@ -310,7 +351,7 @@ This will block execution until the simulation finishes. If the simulation has a
 If there is a chance that the user’s connection will drop for any reason, the user can save the current solution object to a file. This file can later be used to reconnect to the simulation on the server and retrieve the latest updates:
 
 ```python
-solution_file = 'solution.json'
+solution_file = "solution.json"
 
 # Save solution object
 solution.dump(solution_file)
@@ -318,10 +359,17 @@ solution.dump(solution_file)
 ...
 
 # Restore solution (reconnect to the server)
-restored_solution = dandeliion.Simulator.restore(solution_file, api_url=api_url, api_key=api_key)
+restored_solution = dandeliion.Simulator.restore(
+    solution_file,
+    api_url=api_url,
+    api_key=api_key,
+)
 ```
 
-After reloading, `restored_solution` will point to a new solution object representing the simulation.
+Client 2.0 restore bundles never persist the API token, API origin, or reusable
+server URLs. Reconnecting an unfinished bundle therefore requires both an
+explicit v2 `api_url` and `api_key`; this prevents a modified file from sending
+credentials to an attacker-controlled host.
 
 ## Accessing simulation results
 
@@ -353,7 +401,7 @@ X-averaged positive electrode surface concentration [mol.m-3]
 To get access to the particular output, for example, to the voltage vs time vector:
 
 ```python
-V_vs_t = solution['Voltage [V]']
+V_vs_t = solution["Voltage [V]"]
 ```
 
 To print the **final** values of time, voltage, and temperature:
@@ -405,7 +453,7 @@ This is a linear interpolation with constant extrapolation.
 
 ## Save and load simulation results
 
-The entire solution object can be saved to a JSON file:
+The entire solution can be saved as an atomic, versioned JSON bundle:
 
 ```python
 solution.dump("solution.json")
@@ -416,6 +464,32 @@ And restored using
 ```python
 restored_solution = dandeliion.Simulator.restore("solution.json")
 ```
+
+For successful runs, `dump()` streams the complete API result directly into
+the bundle without materialising it in memory. Restored result fields are
+parsed lazily, so `solution["field"]` loads only the fields needed by the
+caller. Incomplete runs are stored with `result: null` and can be reconnected
+later with explicit credentials. Client 2.0 intentionally rejects legacy v1
+restore files.
+
+## Migrating from client 1.x
+
+- Change the configured URL from `https://api.dandeliion.com/v1` to
+  `https://api.dandeliion.com`.
+- Expect `succeeded` instead of `success`, plus the new
+  `cancel_requested`, `cancelled`, and `timed_out` states.
+- Remove any code that expects WebSocket status updates; `join()` and
+  `solution.status` now use bounded REST polling.
+- Treat `DandeliionAPIException` as a structured error and retain
+  `idempotency_key` when manually replaying an uncertain submission.
+- Recreate saved data with client 2.0. V1 restore files and v1 server runs
+  cannot be reconnected.
+- Python 3.9 is no longer supported. Use Python 3.10–3.13.
+
+Maintainers can run the opt-in production contract check with
+`scripts/production_smoke.py`. It is disabled unless
+`--confirm-consume-use` and `DANDELIION_API_TOKEN` are supplied because it
+creates one real simulation and consumes one Token Portal use.
 
 ## Useful links
 
