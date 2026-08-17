@@ -29,7 +29,7 @@ def test_solve_accepts_path_dict_and_bpx(input_bpx):
         submitted = simulator.submit.call_args.kwargs
         assert submitted["parameters"]["Parameterisation"]["User-defined"] == {}
         assert submitted["is_blocking"] is False
-        assert "idempotency_key" not in submitted
+        assert submitted["idempotency_key"] is None
 
 
 def test_solve_adds_experiment_extra_parameters_and_idempotency(input_bpx):

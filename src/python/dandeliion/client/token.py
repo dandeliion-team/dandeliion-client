@@ -29,7 +29,16 @@ SUPPORTED_TOKEN_STATUSES = frozenset(
 
 @dataclass(frozen=True)
 class TokenValidation:
-    """A point-in-time token validation result from a simulation submission."""
+    """A point-in-time token validation result from a simulation submission.
+
+    Args:
+        valid: Whether the token was accepted.
+        status: Token status reported by the Token Portal.
+        expires_at: Timezone-aware token expiry, when provided.
+        uses_remaining: Shared post-submission use balance, when provided.
+        error: Token validation error text, when validation failed.
+
+    """
 
     valid: bool
     status: TokenStatus
@@ -39,7 +48,22 @@ class TokenValidation:
 
     @classmethod
     def from_dict(cls, payload):
-        """Build typed validation metadata from an API response object."""
+        """Build typed validation metadata from an API response object.
+
+        Args:
+            payload: Mapping containing ``valid``, ``status``, ``expires_at``,
+                ``uses_remaining``, and ``error`` values.
+
+        Returns:
+            Validated token metadata.
+
+        Raises:
+            KeyError: If a required field is absent.
+            TypeError: If a field has an invalid type.
+            ValueError: If status, consistency, expiry, or balance validation
+                fails.
+
+        """
         if not isinstance(payload, dict):
             raise TypeError("Token validation metadata must be an object")
 

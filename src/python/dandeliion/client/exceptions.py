@@ -23,6 +23,18 @@ class DandeliionAPIException(Exception):
         retry_after: float | None = None,
         idempotency_key: str | None = None,
     ):
+        """Initialize a structured API exception.
+
+        Args:
+            message: Human-readable error description.
+            status_code: HTTP response status, when a response was received.
+            code: Stable API or client error code.
+            request_id: API request identifier for diagnostics.
+            authorization_request_id: Token Portal reconciliation identifier.
+            retry_after: Server-suggested retry delay in seconds.
+            idempotency_key: Submission key associated with the failed request.
+
+        """
         super().__init__(message)
         self.message = message
         self.status_code = status_code
@@ -37,6 +49,15 @@ class DandeliionTokenValidationError(DandeliionAPIException):
     """Raised when the API rejects a simulation submission's token."""
 
     def __init__(self, message: str, validation, **kwargs):
+        """Initialize an API error with rejected-token metadata.
+
+        Args:
+            message: Human-readable error description.
+            validation: Structured :class:`TokenValidation` rejection details.
+            **kwargs: Structured fields accepted by
+                :class:`DandeliionAPIException`.
+
+        """
         super().__init__(message, **kwargs)
         self.validation = validation
 

@@ -31,6 +31,14 @@ def lint(session):
     session.install("ruff")
     session.run("ruff", "format", "--check", ".")
     session.run("ruff", "check", ".")
+    session.run(
+        "ruff",
+        "check",
+        "--select",
+        "D",
+        "src/python/dandeliion/client",
+        "scripts/production_smoke.py",
+    )
 
 
 @nox.session

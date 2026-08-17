@@ -19,11 +19,16 @@ from dandeliion.client import Simulator
 
 
 def main() -> int:
+    """Run the explicitly acknowledged production API contract check."""
     parser = argparse.ArgumentParser()
     parser.add_argument("parameters", type=Path, help="BPX JSON submission body")
     parser.add_argument("--api-url", default="https://api.dandeliion.com")
     parser.add_argument("--output", type=Path, default=Path("solution-v2.json"))
-    parser.add_argument("--confirm-consume-use", action="store_true")
+    parser.add_argument(
+        "--confirm-consume-use",
+        action="store_true",
+        help="Required acknowledgement that this command consumes one Token Portal use",
+    )
     args = parser.parse_args()
     if not args.confirm_consume_use:
         parser.error("--confirm-consume-use is required because this test consumes one use")

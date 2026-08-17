@@ -1,3 +1,5 @@
+"""Public DandeLiion client API."""
+
 # SPDX-License-Identifier: BSD-3-Clause
 
 # built-in modules
@@ -46,9 +48,7 @@ __version__ = importlib.metadata.version("dandeliion-client")
 
 
 def _convert_experiment(experiment: Experiment, time_series: dict | None = None) -> tuple[dict, dict | None]:
-    """
-    converts pybamm experiment into dict
-    """
+    """Convert a PyBaMM-compatible experiment to the API input structure."""
     operating_conditions, period, temperature, termination = experiment.args
     steps = []
 
@@ -107,26 +107,32 @@ def solve(
     *,
     idempotency_key: str | None = None,
 ) -> Solution:
-    """Method for submitting/running a DandeLiion simulation.
+    """Validate input and submit a DandeLiion simulation.
 
     Args:
-        simulator (Simulator): instance of simulator class providing information
-            to connect to simulation server
-        params (str|Path|dict|BPX): path to BPX parameter file or already read-in valid BPX as dict or BPX object
-        experiment (Experiment, optional): instance of pybamm Experiment defining steps
-        extra_params (dict, optional): extra parameters e.g. simulation mesh, choice of discretisation method
-            and initial conditions specified in the dictionary
-            (if none or only subset is provided, either user-defined values
-            stored in the bpx or, if not present, default values will be used instead)
-        is_blocking (bool, optional): determines whether command is blocking until computation has finished
-            or returns right away. In the latter case, the Solution may still point to an unfinished run
-            (its status can be checked with the property of the same name). Default: True
-        idempotency_key (str, optional): stable key for safely replaying this logical
+        simulator: Configured simulator used to submit and monitor the run.
+        params: Path to a BPX parameter file, a BPX-compatible dictionary, or
+            an already validated :class:`bpx.BPX` object.
+        experiment: Optional PyBaMM-compatible experiment defining the run's
+            operating steps.
+        extra_params: Optional DandeLiion-specific parameters such as mesh,
+            discretisation, resources, and initial conditions. Supplied values
+            override matching user-defined values in the BPX input.
+        is_blocking: Whether to wait for a terminal run state before returning.
+            Defaults to ``True``.
+        idempotency_key: Optional stable key for safely replaying this logical
             submission. A UUID is generated when omitted.
-    Returns:
-        :class:`Solution`: solution for this simulation run
-    """
 
+    Returns:
+        The solution associated with the accepted simulation run.
+
+    Raises:
+        ValueError: If ``params`` is not a supported BPX input.
+        TypeError: If the experiment contains an unsupported step type.
+        DandeliionInterfaceException: If submission input is invalid.
+        DandeliionAPIException: If the API rejects or cannot accept the run.
+
+    """
     # load & validate BPX
     if isinstance(params, dict):
         params = parse_bpx_obj(params)
@@ -159,8 +165,6 @@ def solve(
                 time_series[key] = list(time_series[key])
             params["Parameterisation"]["User-defined"]["DandeLiion: Time series input"] = time_series
 
-    if idempotency_key is None:
-        return simulator.submit(parameters=params, is_blocking=is_blocking)
     return simulator.submit(
         parameters=params,
         is_blocking=is_blocking,

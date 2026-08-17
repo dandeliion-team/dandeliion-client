@@ -57,24 +57,28 @@ MAX_SELECTED_FIELDS = 100
 
 
 def _require_mapping(value: Any, label: str) -> Mapping[str, Any]:
+    """Return *value* as a mapping or raise a structured API error."""
     if not isinstance(value, Mapping):
         raise DandeliionAPIException(f"The API returned invalid {label}: expected an object.")
     return value
 
 
 def _require_string(value: Any, label: str, *, allow_empty: bool = True) -> str:
+    """Return *value* as a validated string."""
     if not isinstance(value, str) or (not allow_empty and not value):
         raise DandeliionAPIException(f"The API returned invalid {label}: expected a string.")
     return value
 
 
 def _require_optional_string(value: Any, label: str) -> str | None:
+    """Return a string-or-null API field after validating its type."""
     if value is not None and not isinstance(value, str):
         raise DandeliionAPIException(f"The API returned invalid {label}: expected a string or null.")
     return value
 
 
 def _normalise_collection_url(api_url: str) -> str:
+    """Validate a user API URL and normalize it to the v2 run collection."""
     if not isinstance(api_url, str) or not api_url:
         raise DandeliionInterfaceException("api_url must be a non-empty absolute URL.")
     parsed = urlparse(api_url)
@@ -105,6 +109,7 @@ def _normalise_collection_url(api_url: str) -> str:
 
 
 def _origin(url: str) -> tuple[str, str, int | None]:
+    """Return a normalized scheme, host, and effective port tuple."""
     parsed = urlparse(url)
     scheme = parsed.scheme.lower()
     try:
@@ -117,6 +122,7 @@ def _origin(url: str) -> tuple[str, str, int | None]:
 
 
 def _expected_urls(collection_url: str, run_id: str) -> dict[str, str]:
+    """Build the trusted resource URLs for one run."""
     base = f"{collection_url}/{run_id}"
     return {
         "self": base,
@@ -127,6 +133,7 @@ def _expected_urls(collection_url: str, run_id: str) -> dict[str, str]:
 
 
 def _validated_urls(value: Any, collection_url: str, run_id: str) -> dict[str, str]:
+    """Validate server-provided run links against their trusted origin and paths."""
     payload = _require_mapping(value, "run URLs")
     expected = _expected_urls(collection_url, run_id)
     trusted_origin = _origin(collection_url)
@@ -147,6 +154,7 @@ def _validated_urls(value: Any, collection_url: str, run_id: str) -> dict[str, s
 
 
 def _validate_artifacts(value: Any) -> dict[str, Any]:
+    """Validate and copy artifact metadata from a run response."""
     payload = _require_mapping(value, "artifact metadata")
     available = payload.get("available")
     if not isinstance(available, bool):
@@ -179,6 +187,7 @@ def _validate_run(
     expected_id: str | None = None,
     require_urls: bool = True,
 ) -> dict[str, Any]:
+    """Validate a flat API v2 run object and return trusted local metadata."""
     payload = _require_mapping(value, "run metadata")
     run_id = _require_string(payload.get("id"), "run id", allow_empty=False)
     try:
@@ -233,6 +242,7 @@ def _validate_run(
 
 
 def _bundle_item(filepath: Path, prefix: str) -> Any:
+    """Read one value from a restore bundle without loading the complete file."""
     try:
         with filepath.open("rb") as handle:
             return next(ijson.items(handle, prefix, use_float=True))
@@ -243,6 +253,7 @@ def _bundle_item(filepath: Path, prefix: str) -> Any:
 
 
 def _bundle_has_result(filepath: Path) -> bool:
+    """Return whether a restore bundle contains a non-null result object."""
     try:
         with filepath.open("rb") as handle:
             for prefix, event, _value in ijson.parse(handle, use_float=True):
@@ -258,6 +269,7 @@ def _bundle_has_result(filepath: Path) -> bool:
 
 
 def _result_array(value: Any, label: str) -> np.ndarray:
+    """Convert a JSON array to a validated numeric NumPy array."""
     if not isinstance(value, list):
         raise DandeliionAPIException(f"{label} must be a JSON array.")
     try:
@@ -270,6 +282,7 @@ def _result_array(value: Any, label: str) -> np.ndarray:
 
 
 def _validate_streamed_bundle_result(filepath: Path, expected_fields: list[str]) -> None:
+    """Incrementally validate a downloaded result and its ordered field names."""
     result_started = False
     result_finished = False
     solution_started = False
@@ -313,7 +326,12 @@ def _validate_streamed_bundle_result(filepath: Path, expected_fields: list[str])
 
 
 class Simulator:
-    """Submit simulations and retrieve their state and results through API v2."""
+    """Submit simulations and retrieve their state and results through API v2.
+
+    Constructing a simulator creates one reusable HTTP session. Pass both
+    ``api_url`` and ``api_key`` for online use, or pass ``None`` for both when
+    the instance is used only by an offline restored :class:`Solution`.
+    """
 
     def __init__(
         self,
@@ -327,6 +345,33 @@ class Simulator:
         max_attempts: int = 3,
         _session: requests.Session | None = None,
     ):
+        """Initialize an API v2 simulator.
+
+        Args:
+            api_url: DandeLiion service root, ``/api/v2`` URL, or exact
+                ``/api/v2/runs`` collection URL. HTTPS is required except for
+                local development. Pass ``None`` together with ``api_key`` to
+                create an offline simulator for restore operations.
+            api_key: API token containing exactly 64 lowercase hexadecimal
+                characters. Pass ``None`` together with ``api_url`` for
+                offline restore operations.
+            request_timeout: ``(connect, read)`` timeout in seconds for normal
+                API requests.
+            result_timeout: ``(connect, read)`` timeout in seconds for streamed
+                result requests.
+            poll_interval: Initial number of seconds between status polls.
+            max_poll_interval: Maximum number of seconds between unchanged
+                status polls.
+            max_attempts: Total attempts for retryable requests, including the
+                first attempt.
+            _session: Internal test hook for supplying a requests-compatible
+                session. Application code should leave this unset.
+
+        Raises:
+            DandeliionInterfaceException: If credentials, URLs, timeouts,
+                polling intervals, or retry settings are invalid.
+
+        """
         if (api_url is None) != (api_key is None):
             raise DandeliionInterfaceException("api_url and api_key must either both be provided or both be omitted.")
         self.api_url = _normalise_collection_url(api_url) if api_url is not None else None
@@ -353,6 +398,7 @@ class Simulator:
 
     @staticmethod
     def _validate_timeout(value: tuple[float, float], label: str) -> tuple[float, float]:
+        """Validate and normalize a requests ``(connect, read)`` timeout."""
         if (
             not isinstance(value, tuple)
             or len(value) != 2
@@ -365,6 +411,7 @@ class Simulator:
         return float(value[0]), float(value[1])
 
     def __repr__(self) -> str:
+        """Return a representation that never exposes the API key."""
         key = "<redacted>" if self.api_key is not None else "None"
         return (
             f"Simulator(api_url={self.api_url!r}, api_key={key}, "
@@ -373,9 +420,11 @@ class Simulator:
 
     @property
     def _online(self) -> bool:
+        """Return whether this simulator has both an API URL and credential."""
         return self.api_url is not None and self.api_key is not None
 
     def _headers(self, extra: Mapping[str, str] | None = None) -> dict[str, str]:
+        """Build authenticated request headers without mutating caller data."""
         if not self._online:
             raise DandeliionAPIException(
                 "This solution is offline. Restore it with an explicit v2 api_url and api_key."
@@ -393,6 +442,7 @@ class Simulator:
 
     @staticmethod
     def _retry_after(response: requests.Response) -> float | None:
+        """Parse and clamp a numeric ``Retry-After`` response header."""
         value = response.headers.get("Retry-After")
         if value is None:
             return None
@@ -404,6 +454,7 @@ class Simulator:
 
     @staticmethod
     def _error_payload(response: requests.Response) -> dict[str, Any]:
+        """Normalize a structured or fallback API error response."""
         try:
             payload = response.json()
         except (TypeError, ValueError, requests.RequestException):
@@ -453,6 +504,7 @@ class Simulator:
         idempotency_key: str | None = None,
         parsed_error: dict[str, Any] | None = None,
     ) -> DandeliionAPIException:
+        """Create the appropriate public exception for an error response."""
         error = parsed_error or self._error_payload(response)
         message = f"DandeLiion API request failed ({response.status_code}, {error['code']}): {error['message']}"
         kwargs = {
@@ -488,6 +540,7 @@ class Simulator:
         idempotency_key: str | None = None,
         submission: bool = False,
     ) -> requests.Response:
+        """Execute one bounded, redirect-free request with retry handling."""
         expected = set(expected_status)
         last_transport_error: requests.RequestException | None = None
         for attempt in range(self.max_attempts):
@@ -562,7 +615,32 @@ class Simulator:
         *,
         idempotency_key: str | None = None,
     ) -> Solution:
-        """Submit a BPX simulation to API v2."""
+        """Submit a BPX simulation to API v2.
+
+        The request body and idempotency key are serialized once and reused
+        unchanged for every automatic retry. When ``is_blocking`` is true,
+        this method waits until the run reaches any terminal state before
+        returning.
+
+        Args:
+            parameters: Validated BPX-compatible simulation parameters as a
+                strict JSON-compatible dictionary.
+            is_blocking: Whether to wait for the run to become terminal.
+                Defaults to ``True``.
+            idempotency_key: Optional stable key for replaying the same logical
+                submission. It must contain 8–128 supported ASCII characters.
+                A UUID is generated when omitted.
+
+        Returns:
+            A solution linked to the accepted API run.
+
+        Raises:
+            DandeliionInterfaceException: If the parameters or idempotency key
+                are invalid.
+            DandeliionTokenValidationError: If the API rejects the token.
+            DandeliionAPIException: If submission or response validation fails.
+
+        """
         if not self._online:
             raise DandeliionAPIException("Cannot submit through an offline Simulator. Provide api_url and api_key.")
         if not isinstance(parameters, dict):
@@ -620,6 +698,7 @@ class Simulator:
         return solution
 
     def _refresh(self, solution: Solution) -> str:
+        """Refresh one solution's run metadata and return its status."""
         if not self._online:
             raise DandeliionAPIException("This incomplete solution is offline. Restore it with api_url and api_key.")
         url = solution._run["urls"]["self"]
@@ -638,11 +717,13 @@ class Simulator:
         return run["status"]
 
     def _get_status(self, solution: Solution) -> str:
+        """Return cached terminal status or refresh a non-terminal run."""
         if solution._run["status"] not in TERMINAL_STATUSES:
             return self._refresh(solution)
         return solution._run["status"]
 
     def _join(self, solution: Solution, timeout: float | None = None) -> None:
+        """Poll a run with adaptive backoff until it becomes terminal."""
         if timeout is not None and (
             not isinstance(timeout, (int, float))
             or isinstance(timeout, bool)
@@ -677,6 +758,7 @@ class Simulator:
 
     @staticmethod
     def _ensure_succeeded(solution: Solution) -> None:
+        """Require a succeeded run whose result artifact is still available."""
         status = solution._run["status"]
         if status != "succeeded":
             message = solution._run.get("error_message") or "The simulation result is not available."
@@ -691,6 +773,7 @@ class Simulator:
             )
 
     def _fetch_fields(self, solution: Solution, fields: list[str]) -> dict[str, np.ndarray]:
+        """Stream and parse only the requested result fields."""
         if not self._online:
             raise DandeliionAPIException("This solution has no local result and is not connected to API v2.")
         self._ensure_succeeded(solution)
@@ -721,6 +804,7 @@ class Simulator:
         return found
 
     def _get_log(self, solution: Solution) -> str:
+        """Append incremental log pages and return all cached log text."""
         if not self._online:
             return solution._log
         while True:
@@ -765,6 +849,7 @@ class Simulator:
                 return solution._log
 
     def _cancel(self, solution: Solution) -> str:
+        """Request cancellation and cache the validated resulting run state."""
         if not self._online:
             raise DandeliionAPIException("Cannot cancel an offline solution. Restore it with api_url and api_key.")
         response = self._request(
@@ -788,6 +873,7 @@ class Simulator:
         return run["status"]
 
     def _copy_bundle(self, source: Path, target: Path) -> None:
+        """Atomically copy an existing offline bundle to another path."""
         if source.resolve() == target.resolve():
             return
         temporary: Path | None = None
@@ -811,6 +897,7 @@ class Simulator:
                 temporary.unlink(missing_ok=True)
 
     def _dump(self, solution: Solution, filepath: str | Path) -> None:
+        """Atomically write solution metadata and any available streamed result."""
         target = Path(filepath)
         if not target.parent.exists():
             raise DandeliionInterfaceException("The destination directory does not exist.")
@@ -960,7 +1047,32 @@ class Simulator:
         api_key: str | None = None,
         api_url: str | None = None,
     ) -> Solution:
-        """Restore a v2 solution bundle, optionally reconnecting it to API v2."""
+        """Restore a v2 solution bundle, optionally reconnecting it to API v2.
+
+        Completed bundles containing a result work offline. An incomplete
+        bundle may be reconnected only when both ``api_url`` and ``api_key``
+        are supplied explicitly; persisted data never selects the destination
+        to which a credential is sent.
+
+        Args:
+            filepath: Path to a client 2.0 solution bundle.
+            api_key: API token used to reconnect an incomplete bundle. Must be
+                supplied together with ``api_url``.
+            api_url: DandeLiion API v2 service or run-collection URL used to
+                reconnect an incomplete bundle. Must be supplied together with
+                ``api_key``.
+
+        Returns:
+            A lazily loaded solution backed by the local result or reconnected
+            API run.
+
+        Raises:
+            DandeliionInterfaceException: If the path, bundle version, or
+                reconnection arguments are invalid.
+            DandeliionAPIException: If bundle metadata or result data is
+                malformed, inconsistent, or cannot be reconnected.
+
+        """
         path = Path(filepath)
         if not path.is_file():
             raise DandeliionInterfaceException(f"Restore file does not exist: {path}")

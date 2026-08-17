@@ -19,17 +19,29 @@ from .token import TokenValidation
 class Simulator(Protocol):
     """Internal protocol implemented by the API transport."""
 
-    def _get_status(self, solution: Solution) -> str: ...
+    def _get_status(self, solution: Solution) -> str:
+        """Return the current status for a solution."""
+        ...
 
-    def _get_log(self, solution: Solution) -> str: ...
+    def _get_log(self, solution: Solution) -> str:
+        """Return all currently available log text for a solution."""
+        ...
 
-    def _fetch_fields(self, solution: Solution, fields: list[str]) -> dict[str, np.ndarray]: ...
+    def _fetch_fields(self, solution: Solution, fields: list[str]) -> dict[str, np.ndarray]:
+        """Fetch selected fields for a solution."""
+        ...
 
-    def _join(self, solution: Solution, timeout: float | None = None) -> None: ...
+    def _join(self, solution: Solution, timeout: float | None = None) -> None:
+        """Wait for a solution to reach a terminal state."""
+        ...
 
-    def _cancel(self, solution: Solution) -> str: ...
+    def _cancel(self, solution: Solution) -> str:
+        """Request cancellation for a solution."""
+        ...
 
-    def _dump(self, solution: Solution, filepath: str | Path) -> None: ...
+    def _dump(self, solution: Solution, filepath: str | Path) -> None:
+        """Persist a solution as a restore bundle."""
+        ...
 
 
 class InterpolatedArray(np.ndarray):
@@ -43,6 +55,7 @@ class InterpolatedArray(np.ndarray):
         y: npt.ArrayLike,
         **kwargs: Any,
     ) -> InterpolatedArray:
+        """Create a one-dimensional array with matching interpolation times."""
         time_values = np.asarray(t)
         values = np.array(y, copy=True, **kwargs)
         if time_values.ndim != 1 or values.ndim != 1:
@@ -54,9 +67,11 @@ class InterpolatedArray(np.ndarray):
         return instance
 
     def __array_finalize__(self, obj: np.ndarray | None) -> None:
+        """Propagate interpolation metadata when NumPy creates a view."""
         self.t = getattr(obj, "t", None)
 
     def __getitem__(self, key: Any) -> Any:
+        """Return an item while applying the same slice to time metadata."""
         result = super().__getitem__(key)
         if isinstance(result, InterpolatedArray) and self.t is not None and self.ndim == 1 and self.t.ndim == 1:
             sliced_time = self.t[key]
@@ -64,6 +79,20 @@ class InterpolatedArray(np.ndarray):
         return result
 
     def __call__(self, t: npt.ArrayLike) -> np.ndarray:
+        """Interpolate the array at one or more times.
+
+        Args:
+            t: Scalar or array-like times at which to evaluate the field.
+
+        Returns:
+            Interpolated values with constant extrapolation outside the stored
+            time range.
+
+        Raises:
+            ValueError: If interpolation metadata is absent or incompatible
+                with the array.
+
+        """
         if self.t is None:
             raise ValueError("Interpolation metadata is not available")
         if self.t.ndim != 1 or self.ndim != 1:
@@ -75,7 +104,12 @@ class InterpolatedArray(np.ndarray):
 
 
 class Solution(Mapping[str, np.ndarray]):
-    """A mapping that lazily fetches and caches simulation result fields."""
+    """A mapping that lazily fetches and caches simulation result fields.
+
+    Applications normally obtain a solution from :meth:`Simulator.submit`,
+    :func:`dandeliion.client.solve`, or :meth:`Simulator.restore` rather than
+    constructing it directly.
+    """
 
     def __init__(
         self,
@@ -89,6 +123,22 @@ class Solution(Mapping[str, np.ndarray]):
         local_result: bool = False,
         time_column: str | None = None,
     ):
+        """Initialize a solution from validated run metadata.
+
+        Args:
+            sim: Transport used for status, logs, results, cancellation, and
+                persistence.
+            run: Validated API v2 run metadata.
+            idempotency_key: Key associated with the original submission, when
+                known.
+            log: Log text already cached locally.
+            log_offset: Byte offset immediately following the cached log.
+            bundle_path: Local restore-bundle path, when restored from disk.
+            local_result: Whether ``bundle_path`` contains a complete result.
+            time_column: Field used to add callable interpolation to compatible
+                one-dimensional result arrays.
+
+        """
         self._sim = sim
         self._run = run
         self._idempotency_key = idempotency_key
@@ -110,9 +160,11 @@ class Solution(Mapping[str, np.ndarray]):
         return self._idempotency_key
 
     def _set_run(self, run: dict[str, Any]) -> None:
+        """Replace cached run metadata with a newly validated snapshot."""
         self._run = run
 
     def _available_fields(self) -> list[str]:
+        """Return result field names after confirming the run succeeded."""
         if self._run["status"] not in {"succeeded", "failed", "cancelled", "timed_out"}:
             self._sim._get_status(self)
         if self._run["status"] != "succeeded":
@@ -127,6 +179,7 @@ class Solution(Mapping[str, np.ndarray]):
         return fields
 
     def _read_local_fields(self, fields: list[str]) -> dict[str, np.ndarray]:
+        """Incrementally read selected numeric fields from a local bundle."""
         if self._bundle_path is None or not self._local_result:
             return {}
         found: dict[str, np.ndarray] = {}
@@ -154,6 +207,7 @@ class Solution(Mapping[str, np.ndarray]):
         return found
 
     def _load_fields(self, fields: list[str]) -> None:
+        """Populate the field cache from local or remote storage."""
         pending = [field for field in fields if field not in self._fields]
         if not pending:
             return
@@ -164,6 +218,20 @@ class Solution(Mapping[str, np.ndarray]):
         self._fields.update(loaded)
 
     def __getitem__(self, key: str) -> np.ndarray:
+        """Return one result field, fetching and caching it when necessary.
+
+        Args:
+            key: Exact field name advertised by the run's artifact metadata.
+
+        Returns:
+            A copy of the numeric result array. Compatible one-dimensional
+            fields are returned as callable :class:`InterpolatedArray` values.
+
+        Raises:
+            KeyError: If the field is not present in the solution.
+            DandeliionAPIException: If the result is unavailable or malformed.
+
+        """
         available = self._available_fields()
         if key not in available:
             raise KeyError(f"Column for {key} does not exist in solution.")
@@ -186,24 +254,34 @@ class Solution(Mapping[str, np.ndarray]):
         return np.array(self._fields[key], copy=True)
 
     def __len__(self) -> int:
+        """Return the number of fields advertised by the succeeded run."""
         return len(self._available_fields())
 
     def __iter__(self):
+        """Iterate over result field names in API metadata order."""
         yield from self._available_fields()
 
     @property
     def status(self) -> str:
-        """Return the current API v2 run state."""
+        """Return the current API v2 run state.
+
+        Non-terminal states are refreshed from the API. Terminal states are
+        returned from the local validated metadata cache.
+        """
         return self._sim._get_status(self)
 
     @property
     def log(self) -> str:
-        """Return all runtime log text retrieved so far."""
+        """Return all available runtime log text.
+
+        Online solutions fetch and append incremental log pages. Offline
+        solutions return the text stored in their restore bundle.
+        """
         return self._sim._get_log(self)
 
     @property
     def token_validation(self) -> TokenValidation | None:
-        """Return the point-in-time Token Portal validation metadata."""
+        """Return the point-in-time Token Portal validation metadata, if any."""
         payload = self._run.get("portal_validation")
         if not payload:
             return None
@@ -213,13 +291,45 @@ class Solution(Mapping[str, np.ndarray]):
             raise DandeliionAPIException("Run metadata contains invalid token validation data.") from exc
 
     def dump(self, filepath: str | Path) -> None:
-        """Atomically write a versioned, restorable solution bundle."""
+        """Atomically write a versioned, restorable solution bundle.
+
+        Args:
+            filepath: Destination file. Its parent directory must already
+                exist. A successful full result is streamed beside this path
+                and replaces it only after complete validation.
+
+        Raises:
+            DandeliionInterfaceException: If the destination is invalid.
+            DandeliionAPIException: If metadata or a required result cannot be
+                retrieved or validated.
+
+        """
         self._sim._dump(self, filepath)
 
     def join(self, timeout: float | None = None) -> None:
-        """Wait until the run reaches any terminal state."""
+        """Wait until the run reaches any terminal state.
+
+        Args:
+            timeout: Optional overall wait limit in seconds. ``None`` waits
+                indefinitely.
+
+        Raises:
+            DandeliionInterfaceException: If ``timeout`` is invalid.
+            DandeliionTimeoutError: If the overall timeout expires.
+            DandeliionAPIException: If the run cannot be polled.
+
+        """
         self._sim._join(self, timeout)
 
     def cancel(self) -> str:
-        """Request idempotent cancellation and return the updated run state."""
+        """Request idempotent cancellation.
+
+        Returns:
+            The updated ``cancel_requested`` or ``cancelled`` run state.
+
+        Raises:
+            DandeliionAPIException: If the solution is offline, cancellation
+                fails, or the run is not cancellable.
+
+        """
         return self._sim._cancel(self)
