@@ -77,7 +77,7 @@ dev = [
     "twine",
 ]
 pybamm = [
-    "pybamm~=26.7.1",
+    "pybamm~=26.8.0",
 ]
 
 # [tool.pytest]
