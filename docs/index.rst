@@ -25,7 +25,7 @@ The following code is an example for how to write a python script to run a simul
   import numpy as np
   import matplotlib.pyplot as plt
 
-  api_url = "https://api.dandeliion.com/v1"
+  api_url = "https://api.dandeliion.com"
   api_key = "API KEY"  # Replace with your actual API key
   simulator = dandeliion.Simulator(api_url, api_key)
 
@@ -103,7 +103,41 @@ The following code is an example for how to write a python script to run a simul
   # Save the solution to a file and load it back
   solution_file = 'test_solution.json'
   solution.dump(solution_file)
-  restored_solution = dandeliion.Simulator.restore(solution_file, api_key=api_key)
+  restored_solution = dandeliion.Simulator.restore(solution_file)
+
+Client 2.0 uses API v2 REST polling rather than WebSockets. It supports the
+``queued``, ``running``, ``cancel_requested``, ``succeeded``, ``failed``,
+``cancelled``, and ``timed_out`` states. Complete results are streamed into
+versioned restore bundles, and unfinished bundles require an explicit API URL
+and token when reconnecting.
+
+Every submission uses an 8-128 character idempotency key. The client generates
+one automatically, or callers can safely replay a logical submission with an
+explicit key::
+
+  solution = simulator.submit(
+      parameters,
+      is_blocking=False,
+      idempotency_key="analysis-batch-0001",
+  )
+
+``solution.join(timeout=300)`` polls until any terminal state and raises
+``DandeliionTimeoutError`` if the caller's overall limit expires. Queued and
+running work can be cancelled with ``solution.cancel()``.
+
+API failures expose ``status_code``, ``code``, ``message``, ``request_id``,
+``authorization_request_id``, ``retry_after``, and ``idempotency_key``.
+``authorization_unknown`` is never automatically retried.
+
+Incomplete bundles contain ``result: null``. Reconnect them only by explicitly
+supplying both values, so persisted data can never choose where the token is
+sent::
+
+  restored_solution = dandeliion.Simulator.restore(
+      solution_file,
+      api_url=api_url,
+      api_key=api_key,
+  )
 
 where the following classes & methods have been used:
 
@@ -119,6 +153,9 @@ where the following classes & methods have been used:
    dandeliion.client.Simulator
    dandeliion.client.Solution
    dandeliion.client.TokenValidation
+   dandeliion.client.DandeliionAPIException
+   dandeliion.client.DandeliionInterfaceException
+   dandeliion.client.DandeliionTimeoutError
    dandeliion.client.DandeliionTokenValidationError
    dandeliion.client.solve
    dandeliion.client.experiment.Experiment

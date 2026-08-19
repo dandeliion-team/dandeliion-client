@@ -1,0 +1,39 @@
+name: production-api-v2-smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_consume_use:
+        description: Confirm that this smoke test may consume one Token Portal use
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    if: ${{ inputs.confirm_consume_use }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: production-smoke
+    steps:
+      - name: Harden the runner
+        uses: step-security/harden-runner@f4a75cfd619ee5ce8d5b864b0d183aff3c69b55a # v2.13.1
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      - uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c # v6.0.0
+        with:
+          python-version: "3.13"
+          cache: pip
+      - run: python -m pip install .
+      - name: Consume one use and exercise API v2
+        env:
+          DANDELIION_API_TOKEN: ${{ secrets.DANDELIION_API_TOKEN }}
+        run: >-
+          python scripts/production_smoke.py
+          examples/AE_gen1_BPX.json
+          --confirm-consume-use
+          --output "${{ runner.temp }}/solution-v2.json"

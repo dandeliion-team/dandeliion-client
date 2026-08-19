@@ -1,9 +1,10 @@
 """Public token-validation metadata returned by the DandeLiion API."""
 
+# SPDX-License-Identifier: BSD-3-Clause
+
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Literal, Optional
-
+from typing import Literal, cast
 
 TokenStatus = Literal[
     "valid",
@@ -28,17 +29,41 @@ SUPPORTED_TOKEN_STATUSES = frozenset(
 
 @dataclass(frozen=True)
 class TokenValidation:
-    """A point-in-time token validation result from a simulation submission."""
+    """A point-in-time token validation result from a simulation submission.
+
+    Args:
+        valid: Whether the token was accepted.
+        status: Token status reported by the Token Portal.
+        expires_at: Timezone-aware token expiry, when provided.
+        uses_remaining: Shared post-submission use balance, when provided.
+        error: Token validation error text, when validation failed.
+
+    """
 
     valid: bool
     status: TokenStatus
-    expires_at: Optional[datetime]
-    uses_remaining: Optional[int]
-    error: Optional[str]
+    expires_at: datetime | None
+    uses_remaining: int | None
+    error: str | None
 
     @classmethod
     def from_dict(cls, payload):
-        """Build typed validation metadata from an API response object."""
+        """Build typed validation metadata from an API response object.
+
+        Args:
+            payload: Mapping containing ``valid``, ``status``, ``expires_at``,
+                ``uses_remaining``, and ``error`` values.
+
+        Returns:
+            Validated token metadata.
+
+        Raises:
+            KeyError: If a required field is absent.
+            TypeError: If a field has an invalid type.
+            ValueError: If status, consistency, expiry, or balance validation
+                fails.
+
+        """
         if not isinstance(payload, dict):
             raise TypeError("Token validation metadata must be an object")
 
@@ -64,9 +89,7 @@ class TokenValidation:
                 raise ValueError("Token expiry must include a timezone")
 
         if uses_remaining is not None and (
-            not isinstance(uses_remaining, int)
-            or isinstance(uses_remaining, bool)
-            or uses_remaining < 0
+            not isinstance(uses_remaining, int) or isinstance(uses_remaining, bool) or uses_remaining < 0
         ):
             raise ValueError("Token uses remaining must be a non-negative integer")
         if error is not None and not isinstance(error, str):
@@ -74,7 +97,7 @@ class TokenValidation:
 
         return cls(
             valid=valid,
-            status=status,
+            status=cast(TokenStatus, status),
             expires_at=parsed_expiry,
             uses_remaining=uses_remaining,
             error=error,

@@ -1,227 +1,335 @@
-"""
-@file python/dandeliion/client/solution.py
+"""Dictionary-style access to a DandeLiion simulation solution."""
 
-Module containing class for handling access to solutions
-"""
+# SPDX-License-Identifier: BSD-3-Clause
 
-#
-# Copyright (C) 2024-2026 DandeLiion Technologies Limited
-#
-# This library is free software; you can redistribute it and/or modify it under
-# the terms of the GNU Lesser General Public License as published by the Free
-# Software Foundation; either version 3.0 of the License, or (at your option)
-# any later version.
-#
-# This library is distributed in the hope that it will be useful, but WITHOUT
-# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-# FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public License for more
-# details.
-#
-# You should have received a copy of the GNU Lesser General Public License
-# along with this library; if not, write to the Free Software Foundation, Inc.,
-# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
-#
+from __future__ import annotations
 
-# built-in modules
-import logging
-import copy
-import json
-from typing import Protocol, Optional, Union
-from pathlib import Path
 from collections.abc import Mapping
+from pathlib import Path
+from typing import Any, Protocol
 
-# custom modules
+import ijson
+import numpy as np
+import numpy.typing as npt
+
 from .exceptions import DandeliionAPIException
 from .token import TokenValidation
 
-# third-party modules
-import numpy as np
-import numpy.typing
-
-
-logger = logging.getLogger(__name__)
-
 
 class Simulator(Protocol):
-    """ Simulator Protocol """
-    def update_results(self, prefetched_data: dict, keys: list = None, inline: bool = False) -> Optional[dict]: ...
-    def get_status(self, prefetched_data: dict) -> str: ...
-    def get_log(self, prefetched_data: dict) -> str: ...
+    """Internal protocol implemented by the API transport."""
+
+    def _get_status(self, solution: Solution) -> str:
+        """Return the current status for a solution."""
+        ...
+
+    def _get_log(self, solution: Solution) -> str:
+        """Return all currently available log text for a solution."""
+        ...
+
+    def _fetch_fields(self, solution: Solution, fields: list[str]) -> dict[str, np.ndarray]:
+        """Fetch selected fields for a solution."""
+        ...
+
+    def _join(self, solution: Solution, timeout: float | None = None) -> None:
+        """Wait for a solution to reach a terminal state."""
+        ...
+
+    def _cancel(self, solution: Solution) -> str:
+        """Request cancellation for a solution."""
+        ...
+
+    def _dump(self, solution: Solution, filepath: str | Path) -> None:
+        """Persist a solution as a restore bundle."""
+        ...
 
 
 class InterpolatedArray(np.ndarray):
-    """
-    Subclass of ndarray providing function call for linear interpolation
-    """
-    def __new__(cls, t: np.typing.ArrayLike, y: np.typing.ArrayLike, **kwargs):
-        instance = np.asarray(y, **kwargs).view(cls)
-        instance.t = np.array(t)
+    """An ndarray that supports linear interpolation when called."""
+
+    t: np.ndarray | None
+
+    def __new__(
+        cls,
+        t: npt.ArrayLike,
+        y: npt.ArrayLike,
+        **kwargs: Any,
+    ) -> InterpolatedArray:
+        """Create a one-dimensional array with matching interpolation times."""
+        time_values = np.asarray(t)
+        values = np.array(y, copy=True, **kwargs)
+        if time_values.ndim != 1 or values.ndim != 1:
+            raise ValueError("x and y must be one-dimensional array-like objects")
+        if time_values.shape != values.shape:
+            raise ValueError("x and y must have the same length")
+        instance = values.view(cls)
+        instance.t = np.array(time_values, copy=True)
         return instance
 
-    def __call__(self, t):
-        """
-        function call to return interpolated value
-        """
-        # check that 1-d array
-        if not (len(self.t.shape) == len(self.shape) == 1):
-            raise ValueError('x and y must be 1-d array-like objects')
-        # check that array of same length
-        if self.t.shape != self.shape:
-            raise ValueError('x and y must be of same length')
-        return np.interp(t, self.t, self)
+    def __array_finalize__(self, obj: np.ndarray | None) -> None:
+        """Propagate interpolation metadata when NumPy creates a view."""
+        self.t = getattr(obj, "t", None)
 
+    def __getitem__(self, key: Any) -> Any:
+        """Return an item while applying the same slice to time metadata."""
+        result = super().__getitem__(key)
+        if isinstance(result, InterpolatedArray) and self.t is not None and self.ndim == 1 and self.t.ndim == 1:
+            sliced_time = self.t[key]
+            result.t = np.array(sliced_time, copy=True) if np.ndim(sliced_time) == 1 else None
+        return result
 
-class Solution(Mapping):
-    """
-    Dictionary-style class for the solutions of a simulation run
-    returned by :meth:`solve`
-    """
-
-    _data: dict = None
-    _sim: Simulator = None
-
-    def __init__(self, sim: Simulator, prefetched_data: Union[dict, str, Path], time_column: str = None):
-        """
-        Constructor
+    def __call__(self, t: npt.ArrayLike) -> np.ndarray:
+        """Interpolate the array at one or more times.
 
         Args:
-            sim (Simulator): simulator instance for fetching data from server
-            prefetched_data (dict | str | Path): existing (meta) data either as dictionary or stored in json file
-            time_column (str): label of time column (used for interpolation)
+            t: Scalar or array-like times at which to evaluate the field.
+
+        Returns:
+            Interpolated values with constant extrapolation outside the stored
+            time range.
+
+        Raises:
+            ValueError: If interpolation metadata is absent or incompatible
+                with the array.
+
+        """
+        if self.t is None:
+            raise ValueError("Interpolation metadata is not available")
+        if self.t.ndim != 1 or self.ndim != 1:
+            raise ValueError("x and y must be one-dimensional array-like objects")
+        if self.t.shape != self.shape:
+            raise ValueError("x and y must have the same length")
+        query = np.asarray(t, dtype=float)
+        return np.interp(query, self.t, np.asarray(self))
+
+
+class Solution(Mapping[str, np.ndarray]):
+    """A mapping that lazily fetches and caches simulation result fields.
+
+    Applications normally obtain a solution from :meth:`Simulator.submit`,
+    :func:`dandeliion.client.solve`, or :meth:`Simulator.restore` rather than
+    constructing it directly.
+    """
+
+    def __init__(
+        self,
+        sim: Simulator,
+        run: dict[str, Any],
+        *,
+        idempotency_key: str | None = None,
+        log: str = "",
+        log_offset: int = 0,
+        bundle_path: Path | None = None,
+        local_result: bool = False,
+        time_column: str | None = None,
+    ):
+        """Initialize a solution from validated run metadata.
+
+        Args:
+            sim: Transport used for status, logs, results, cancellation, and
+                persistence.
+            run: Validated API v2 run metadata.
+            idempotency_key: Key associated with the original submission, when
+                known.
+            log: Log text already cached locally.
+            log_offset: Byte offset immediately following the cached log.
+            bundle_path: Local restore-bundle path, when restored from disk.
+            local_result: Whether ``bundle_path`` contains a complete result.
+            time_column: Field used to add callable interpolation to compatible
+                one-dimensional result arrays.
+
         """
         self._sim = sim
-        # if prefetched_data is not dict i.e. path to json file instead, load file
-        if not isinstance(prefetched_data, dict):
-            with open(prefetched_data, 'r') as f:
-                prefetched_data = json.load(f)
-        self._data = prefetched_data
+        self._run = run
+        self._idempotency_key = idempotency_key
+        self._log = log
+        self._log_offset = log_offset
+        self._bundle_path = bundle_path
+        self._local_result = local_result
         self._time_column = time_column
+        self._fields: dict[str, np.ndarray] = {}
 
-    def _init_solution(self):
-        """
-        Initialises prefetched solution from simulator if necessary
-        """
-        logger.debug('Initialising solutions')
-        self._sim.update_results(self._data, inline=True)
-        # if solution still not initialised (e.g. because simulation
-        # failed or has not finished yet), raise Exception
-        if self._data['Solution'] is None:
+    @property
+    def run_id(self) -> str:
+        """Return the UUID of the API run."""
+        return self._run["id"]
+
+    @property
+    def idempotency_key(self) -> str | None:
+        """Return the key used for the original submission, when known."""
+        return self._idempotency_key
+
+    def _set_run(self, run: dict[str, Any]) -> None:
+        """Replace cached run metadata with a newly validated snapshot."""
+        self._run = run
+
+    def _available_fields(self) -> list[str]:
+        """Return result field names after confirming the run succeeded."""
+        if self._run["status"] not in {"succeeded", "failed", "cancelled", "timed_out"}:
+            self._sim._get_status(self)
+        if self._run["status"] != "succeeded":
+            message = self._run.get("error_message") or "Solution not ready."
             raise DandeliionAPIException(
-                'Solution not ready (yet). Check status for details.'
+                message,
+                code=self._run.get("error_code") or "result_not_available",
             )
+        fields = self._run["artifacts"]["solution_fields"]
+        if not isinstance(fields, list):
+            raise DandeliionAPIException("Run metadata contains invalid solution fields.")
+        return fields
 
-    def __getitem__(self, key: str):
-        """
-        Returns the results requested by the key.
+    def _read_local_fields(self, fields: list[str]) -> dict[str, np.ndarray]:
+        """Incrementally read selected numeric fields from a local bundle."""
+        if self._bundle_path is None or not self._local_result:
+            return {}
+        found: dict[str, np.ndarray] = {}
+        try:
+            with self._bundle_path.open("rb") as handle:
+                for key, value in ijson.kvitems(
+                    handle,
+                    "result.Solution",
+                    use_float=True,
+                ):
+                    if key in fields and key not in found:
+                        if not isinstance(value, list):
+                            raise DandeliionAPIException(f"The restore bundle field '{key}' is not a JSON array.")
+                        array = np.asarray(value)
+                        if array.ndim < 1 or not np.issubdtype(array.dtype, np.number):
+                            raise DandeliionAPIException(f"The restore bundle field '{key}' is not a numeric array.")
+                        found[key] = array
+                        if len(found) == len(fields):
+                            break
+        except (OSError, ijson.JSONError, UnicodeError, TypeError, ValueError) as exc:
+            raise DandeliionAPIException("The restore bundle contains invalid solution data.") from exc
+        if set(found) != set(fields):
+            missing = ", ".join(field for field in fields if field not in found)
+            raise DandeliionAPIException(f"The restore bundle omits solution fields: {missing}.")
+        return found
+
+    def _load_fields(self, fields: list[str]) -> None:
+        """Populate the field cache from local or remote storage."""
+        pending = [field for field in fields if field not in self._fields]
+        if not pending:
+            return
+        if self._local_result:
+            loaded = self._read_local_fields(pending)
+        else:
+            loaded = self._sim._fetch_fields(self, pending)
+        self._fields.update(loaded)
+
+    def __getitem__(self, key: str) -> np.ndarray:
+        """Return one result field, fetching and caching it when necessary.
 
         Args:
-            key (str): key for results to be returned.
+            key: Exact field name advertised by the run's artifact metadata.
 
         Returns:
-            object: data as requested by provided key
+            A copy of the numeric result array. Compatible one-dimensional
+            fields are returned as callable :class:`InterpolatedArray` values.
+
+        Raises:
+            KeyError: If the field is not present in the solution.
+            DandeliionAPIException: If the result is unavailable or malformed.
+
         """
-
-        # if solution not initialised yet, try to fetch from server
-        if self._data.get('Solution', None) is None:
-            self._init_solution()
-
-        if key not in self._data['Solution']:
-            raise KeyError(
-                f'Column for {key} does not exist in solution.'
-            )
-        # fetch data if necessary (time column and requested column)
-        keys = []
-        if self._time_column is not None and self._data['Solution'][self._time_column] is None:
-            logger.info(f"Fetching '{self._time_column}' column from simulator")
-            keys.append(self._time_column)
-        if self._data['Solution'][key] is None and (self._time_column is None or key != self._time_column):
-            logger.info(f"Fetching '{key}' column from simulator")
-            keys.append(key)
-        if keys:
-            self._sim.update_results(self._data, keys=keys, inline=True)
-        # now return either an InterpolatedArray (if time column defined) or just a numpy array with a copy
-        # of the requested column
+        available = self._available_fields()
+        if key not in available:
+            raise KeyError(f"Column for {key} does not exist in solution.")
+        requested: list[str] = []
+        if self._time_column is not None and self._time_column not in self._fields and self._time_column in available:
+            requested.append(self._time_column)
+        if key not in requested and key not in self._fields:
+            requested.append(key)
+        self._load_fields(requested)
         if self._time_column is not None:
-            return InterpolatedArray(t=self._data['Solution'][self._time_column], y=self._data['Solution'][key])
-        else:
-            return np.array(copy.deepcopy(self._data['Solution'][key]))
+            if self._time_column not in self._fields:
+                raise DandeliionAPIException(
+                    f"Solution does not contain the required time field '{self._time_column}'."
+                )
+            time_values = self._fields[self._time_column]
+            values = self._fields[key]
+            if time_values.ndim == 1 and values.ndim == 1 and time_values.shape == values.shape:
+                return InterpolatedArray(t=time_values, y=values)
+            return np.array(values, copy=True)
+        return np.array(self._fields[key], copy=True)
 
-    def __len__(self):
-        """
-        Returns the number of fields in the solutions.
-
-        Returns:
-            int: number of fields
-        """
-        if self._data.get('Solution', None) is None:
-            self._init_solution()
-        return len(self._data['Solution'])
+    def __len__(self) -> int:
+        """Return the number of fields advertised by the succeeded run."""
+        return len(self._available_fields())
 
     def __iter__(self):
-        """
-        Returns an iterator on the solutions fields.
-
-        Returns:
-            iterator
-        """
-        if self._data.get('Solution', None) is None:
-            self._init_solution()
-        yield from self._data['Solution']
+        """Iterate over result field names in API metadata order."""
+        yield from self._available_fields()
 
     @property
-    def status(self):
-        """
-        Returns the status of the simulation run linked to this solutions
+    def status(self) -> str:
+        """Return the current API v2 run state.
 
-        Returns:
-            str: current status of simulation run ('queued', 'running', 'failed', 'success')
+        Non-terminal states are refreshed from the API. Terminal states are
+        returned from the local validated metadata cache.
         """
-        return self._sim.get_status(self._data)
-
-    @property
-    def log(self):
-        """
-        Returns the log file produced by the backend
-
-        Returns:
-            str: contents of log file (runtime_log.txt)
-        """
-        return self._sim.get_log(self._data)
+        return self._sim._get_status(self)
 
     @property
-    def token_validation(self):
-        """Return token status, expiry, and post-submission remaining uses."""
-        payload = self._data.get("Token")
-        if payload is None:
+    def log(self) -> str:
+        """Return all available runtime log text.
+
+        Online solutions fetch and append incremental log pages. Offline
+        solutions return the text stored in their restore bundle.
+        """
+        return self._sim._get_log(self)
+
+    @property
+    def token_validation(self) -> TokenValidation | None:
+        """Return the point-in-time Token Portal validation metadata, if any."""
+        payload = self._run.get("portal_validation")
+        if not payload:
             return None
         try:
             return TokenValidation.from_dict(payload)
         except (KeyError, TypeError, ValueError) as exc:
-            raise DandeliionAPIException(
-                "The API returned invalid token validation metadata"
-            ) from exc
+            raise DandeliionAPIException("Run metadata contains invalid token validation data.") from exc
 
-    def dump(self, filepath: Union[str, Path]):
-        """
-        Fetches all data and stores it into file.
+    def dump(self, filepath: str | Path) -> None:
+        """Atomically write a versioned, restorable solution bundle.
 
         Args:
-           filepath (str | Path): path to file were data should be stored
-        """
-        # fetch all (meta)data
-        self._sim.get_status(self._data)
-        try:
-            self._sim.update_results(self._data, keys=list(self.keys()), inline=True)
-        except DandeliionAPIException:  # if simulation not done yet
-            pass
-        self._sim.get_log(self._data)
+            filepath: Destination file. Its parent directory must already
+                exist. A successful full result is streamed beside this path
+                and replaces it only after complete validation.
 
-        # now dump into file
-        with open(filepath, 'w') as f:
-            json.dump(self._data, f)
+        Raises:
+            DandeliionInterfaceException: If the destination is invalid.
+            DandeliionAPIException: If metadata or a required result cannot be
+                retrieved or validated.
 
-    def join(self):
         """
-        Blocks until solution is available (i.e. simulation is done)
+        self._sim._dump(self, filepath)
+
+    def join(self, timeout: float | None = None) -> None:
+        """Wait until the run reaches any terminal state.
+
+        Args:
+            timeout: Optional overall wait limit in seconds. ``None`` waits
+                indefinitely.
+
+        Raises:
+            DandeliionInterfaceException: If ``timeout`` is invalid.
+            DandeliionTimeoutError: If the overall timeout expires.
+            DandeliionAPIException: If the run cannot be polled.
+
         """
-        self._sim._join(self._data)
+        self._sim._join(self, timeout)
+
+    def cancel(self) -> str:
+        """Request idempotent cancellation.
+
+        Returns:
+            The updated ``cancel_requested`` or ``cancelled`` run state.
+
+        Raises:
+            DandeliionAPIException: If the solution is offline, cancellation
+                fails, or the run is not cancellable.
+
+        """
+        return self._sim._cancel(self)
