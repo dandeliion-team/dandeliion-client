@@ -1,8 +1,15 @@
 # Environments
-.venv
+.venv*
+.nox
 
 # Cache and temporary files
 __pycache__
+.coverage
+.mypy_cache
+.pytest_cache
+.ruff_cache
+.local
+dist
 docs/_build
 docs/stubs
 *~

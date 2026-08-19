@@ -3,15 +3,45 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.0]
+
+### Added
+
+- DandeLiion API v2 submission, status polling, incremental logs, selected
+  result streaming, cancellation, and structured error support
+- Automatic and caller-supplied idempotency keys with safe bounded retries
+- Atomic, versioned, lazy-loading solution restore bundles
+- Python 3.10–3.13, packaging, typing, audit, and build validation
+
+### Changed
+
+- Successful runs now use the API v2 `succeeded` state
+- Full result downloads stream directly to disk instead of materialising the
+  solution in memory
+- Runtime dependencies now include NumPy and ijson; optional PyBaMM support
+  targets the 26.7 release line
+- Project source licensing is consistently BSD-3-Clause
+
+### Fixed
+
+- `Solution.dump()` falls back to the selected-result stream when a deployment
+  returns 404 from its direct full-result route
+
+### Removed
+
+- API v1, Socket.IO/WebSocket status handling, and v1 restore-file support
+- Python 3.9 support
+
 ## [1.3]
 
 ### Added
 
--
+- `TokenValidation` metadata on successful simulation submissions
+- `DandeliionTokenValidationError` with structured rejected-token details
 
 ### Fixed
 
--
+- Constrained BPX to the supported 0.5 release line
 
 ### Changed
 

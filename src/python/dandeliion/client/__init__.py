@@ -1,31 +1,54 @@
+"""Public DandeLiion client API."""
+
+# SPDX-License-Identifier: BSD-3-Clause
+
 # built-in modules
 import importlib.metadata
-from pathlib import Path
-from typing import Union
 from collections.abc import Sequence
+from pathlib import Path
+
+from .exceptions import (
+    DandeliionAPIException,
+    DandeliionInterfaceException,
+    DandeliionTimeoutError,
+    DandeliionTokenValidationError,
+)
 
 # custom modules
 from .simulator import Simulator
 from .solution import Solution
+from .token import TokenStatus, TokenValidation
 
 # third-party modules
 try:
     from pybamm import Experiment, Interpolant
-    from pybamm.experiment.step import Power, Current
+    from pybamm.experiment.step import Current, Power
+
     __has_pybamm__ = True
 except ModuleNotFoundError:
     from .experiment import Experiment
+
     __has_pybamm__ = False
-from bpx import parse_bpx_obj, parse_bpx_file, BPX
 import numpy as np
+from bpx import BPX, parse_bpx_file, parse_bpx_obj
 
-__version__ = importlib.metadata.version('dandeliion-client')
+__all__ = [
+    "DandeliionAPIException",
+    "DandeliionInterfaceException",
+    "DandeliionTimeoutError",
+    "DandeliionTokenValidationError",
+    "Simulator",
+    "Solution",
+    "TokenStatus",
+    "TokenValidation",
+    "solve",
+]
+
+__version__ = importlib.metadata.version("dandeliion-client")
 
 
-def _convert_experiment(experiment: Experiment, time_series: dict = None) -> tuple[dict, dict]:
-    """
-    converts pybamm experiment into dict
-    """
+def _convert_experiment(experiment: Experiment, time_series: dict | None = None) -> tuple[dict, dict | None]:
+    """Convert a PyBaMM-compatible experiment to the API input structure."""
     operating_conditions, period, temperature, termination = experiment.args
     steps = []
 
@@ -43,24 +66,25 @@ def _convert_experiment(experiment: Experiment, time_series: dict = None) -> tup
                     if step.input_duration is not None:
                         raise ValueError("'duration' argument not supported for drive cycles yet.")
                     time_series_ = {
-                        'Time [s]': (step.value.x[0] if isinstance(step.value.x, Sequence)
-                                     else step.value.x)
+                        "Time [s]": (step.value.x[0] if isinstance(step.value.x, Sequence) else step.value.x)
                     }
                     if isinstance(step, Current):
-                        time_series_['Current [A]'] = step.value.y
+                        time_series_["Current [A]"] = step.value.y
                     else:
-                        time_series_['Power [W]'] = step.value.y
+                        time_series_["Power [W]"] = step.value.y
 
                     # check if time series already exists and only accept it if identical
                     if time_series is not None:
                         try:
                             np.testing.assert_equal(time_series_, time_series)
                         except AssertionError as e:
-                            raise NotImplementedError("Currently only identical drive cycle time series are supported. "
-                                                      "Found multiple non-identical ones!") from e
+                            raise NotImplementedError(
+                                "Currently only identical drive cycle time series are supported. "
+                                "Found multiple non-identical ones!"
+                            ) from e
                     else:
                         time_series = time_series_
-                    steps.append('Time series')
+                    steps.append("Time series")
                 else:
                     raise TypeError(f"{type(step)} only supported as drive cycle at the moment.")
             else:
@@ -75,31 +99,40 @@ def _convert_experiment(experiment: Experiment, time_series: dict = None) -> tup
 
 
 def solve(
-        simulator: Simulator,
-        params: Union[str, Path, dict, BPX],
-        experiment: Experiment = None,
-        extra_params: dict = None,
-        is_blocking: bool = True,
+    simulator: Simulator,
+    params: str | Path | dict | BPX,
+    experiment: Experiment = None,
+    extra_params: dict | None = None,
+    is_blocking: bool = True,
+    *,
+    idempotency_key: str | None = None,
 ) -> Solution:
-
-    """Method for submitting/running a DandeLiion simulation.
+    """Validate input and submit a DandeLiion simulation.
 
     Args:
-        simulator (Simulator): instance of simulator class providing information
-            to connect to simulation server
-        params (str|Path|dict|BPX): path to BPX parameter file or already read-in valid BPX as dict or BPX object
-        experiment (Experiment, optional): instance of pybamm Experiment defining steps
-        extra_params (dict, optional): extra parameters e.g. simulation mesh, choice of discretisation method
-            and initial conditions specified in the dictionary
-            (if none or only subset is provided, either user-defined values
-            stored in the bpx or, if not present, default values will be used instead)
-        is_blocking (bool, optional): determines whether command is blocking until computation has finished
-            or returns right away. In the latter case, the Solution may still point to an unfinished run
-            (its status can be checked with the property of the same name). Default: True
-    Returns:
-        :class:`Solution`: solution for this simulation run
-    """
+        simulator: Configured simulator used to submit and monitor the run.
+        params: Path to a BPX parameter file, a BPX-compatible dictionary, or
+            an already validated :class:`bpx.BPX` object.
+        experiment: Optional PyBaMM-compatible experiment defining the run's
+            operating steps.
+        extra_params: Optional DandeLiion-specific parameters such as mesh,
+            discretisation, resources, and initial conditions. Supplied values
+            override matching user-defined values in the BPX input.
+        is_blocking: Whether to wait for a terminal run state before returning.
+            Defaults to ``True``.
+        idempotency_key: Optional stable key for safely replaying this logical
+            submission. A UUID is generated when omitted.
 
+    Returns:
+        The solution associated with the accepted simulation run.
+
+    Raises:
+        ValueError: If ``params`` is not a supported BPX input.
+        TypeError: If the experiment contains an unsupported step type.
+        DandeliionInterfaceException: If submission input is invalid.
+        DandeliionAPIException: If the API rejects or cannot accept the run.
+
+    """
     # load & validate BPX
     if isinstance(params, dict):
         params = parse_bpx_obj(params)
@@ -111,28 +144,29 @@ def solve(
     # turn back into dict
     params = params.model_dump(by_alias=True, exclude_unset=True)
 
-    if (
-            "User-defined" not in params['Parameterisation'] or
-            params['Parameterisation']["User-defined"] is None
-    ):
-        params['Parameterisation']["User-defined"] = {}
+    if "User-defined" not in params["Parameterisation"] or params["Parameterisation"]["User-defined"] is None:
+        params["Parameterisation"]["User-defined"] = {}
 
     # add/overwrite extra parameters
     if extra_params:
         for param, value in extra_params.items():
-            params['Parameterisation']["User-defined"][f"DandeLiion: {param}"] = value
+            params["Parameterisation"]["User-defined"][f"DandeLiion: {param}"] = value
 
     # add experiment
     if experiment:
         experiment_, time_series = _convert_experiment(
             experiment=experiment,
-            time_series=params['Parameterisation']["User-defined"].get('DandeLiion: Time series input', None),
+            time_series=params["Parameterisation"]["User-defined"].get("DandeLiion: Time series input", None),
         )
-        params['Parameterisation']["User-defined"]["DandeLiion: Experiment"] = experiment_
+        params["Parameterisation"]["User-defined"]["DandeLiion: Experiment"] = experiment_
         if time_series is not None:
             # convert time_series values to list in preparation for serialising them
-            for key, val in time_series.items():
+            for key in time_series:
                 time_series[key] = list(time_series[key])
-            params['Parameterisation']["User-defined"]["DandeLiion: Time series input"] = time_series
+            params["Parameterisation"]["User-defined"]["DandeLiion: Time series input"] = time_series
 
-    return simulator.submit(parameters=params, is_blocking=is_blocking)
+    return simulator.submit(
+        parameters=params,
+        is_blocking=is_blocking,
+        idempotency_key=idempotency_key,
+    )

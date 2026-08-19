@@ -15,6 +15,6 @@ We encourage responsible disclosure of security vulnerabilities. If you find som
 
 In order for the vulnerability reports to reach maintainers as soon as possible, the preferred way is to use the "Report a vulnerability" button under the "Security" tab of the associated GitHub project. This creates a private communication channel between the reporter and the maintainers.
 
-If you are absolutely unable to or have strong reasons not to use GitHub's vulnerability reporting workflow, please reach out to the Dandeliion team at [team@dandeliion.com](mailto:team@dandeliion.com).
+If you are absolutely unable to or have strong reasons not to use GitHub's vulnerability reporting workflow, please contact DandeLiion Technologies Limited at [team@dandeliion.com](mailto:team@dandeliion.com).
 
 [gh-organization]: https://github.com/dandeliion-team
