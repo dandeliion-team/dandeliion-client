@@ -39,6 +39,13 @@ def lint(session):
         "src/python/dandeliion/client",
         "scripts/production_smoke.py",
     )
+    session.run(
+        "ruff",
+        "check",
+        "--select",
+        "D103",
+        "tests/python/dandeliion/client",
+    )
 
 
 @nox.session

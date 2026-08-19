@@ -9,6 +9,7 @@ from dandeliion.client.token import TokenValidation
 
 
 def valid_payload():
+    """Return valid Token Portal metadata for mutation by individual tests."""
     return {
         "valid": True,
         "status": "valid",
@@ -19,6 +20,7 @@ def valid_payload():
 
 
 def test_parses_valid_metadata():
+    """Parse valid token metadata into typed, timezone-aware values."""
     validation = TokenValidation.from_dict(valid_payload())
     assert validation.valid is True
     assert validation.expires_at.tzinfo == timezone.utc
@@ -40,6 +42,7 @@ def test_parses_valid_metadata():
     ],
 )
 def test_rejects_invalid_metadata(key, value, exception):
+    """Reject each invalid token field with the appropriate exception type."""
     payload = valid_payload()
     payload[key] = value
     with pytest.raises(exception):
@@ -47,6 +50,7 @@ def test_rejects_invalid_metadata(key, value, exception):
 
 
 def test_rejects_non_mapping_and_missing_fields():
+    """Reject non-object token metadata and objects missing required fields."""
     with pytest.raises(TypeError):
         TokenValidation.from_dict([])
     payload = valid_payload()

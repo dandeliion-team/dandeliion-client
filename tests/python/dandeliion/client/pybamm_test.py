@@ -11,6 +11,7 @@ from dandeliion.client import _convert_experiment  # noqa: E402
 
 
 def test_convert_pybamm_experiment():
+    """Convert ordinary PyBaMM steps and sampling period for API submission."""
     experiment = pybamm.Experiment(
         ["Discharge at 1C for 1 hour", "Rest for 10 seconds"],
         period="5 seconds",
@@ -26,6 +27,7 @@ def test_convert_pybamm_experiment():
 
 @pytest.mark.parametrize("kind, field", [("current", "Current [A]"), ("power", "Power [W]")])
 def test_convert_pybamm_drive_cycle(kind, field):
+    """Convert PyBaMM current and power drive cycles to time-series fields."""
     drive_cycle = np.column_stack([np.array([0.0, 1.0, 2.0]), np.array([1.0, 0.5, 0.0])])
     step = getattr(pybamm.step, kind)(drive_cycle)
     converted, time_series = _convert_experiment(pybamm.Experiment([step]))

@@ -15,6 +15,7 @@ from dandeliion.client.experiment import Experiment
 
 @pytest.fixture
 def input_bpx():
+    """Return the sample BPX path and a mutable parsed payload."""
     filename = Path(__file__).parent / "data" / "input_bpx.json"
     payload = json.loads(filename.read_text())
     payload["Parameterisation"]["User-defined"] = {}
@@ -22,6 +23,7 @@ def input_bpx():
 
 
 def test_solve_accepts_path_dict_and_bpx(input_bpx):
+    """Submit equivalent file, mapping, and parsed BPX inputs unchanged."""
     for parameters in (input_bpx[0], input_bpx[1], parse_bpx_file(input_bpx[0])):
         simulator = mock.MagicMock()
         returned = solve(simulator, parameters, is_blocking=False)
@@ -33,6 +35,7 @@ def test_solve_accepts_path_dict_and_bpx(input_bpx):
 
 
 def test_solve_adds_experiment_extra_parameters_and_idempotency(input_bpx):
+    """Merge experiment options and forward the caller's idempotency key."""
     simulator = mock.MagicMock()
     experiment = Experiment(
         ["Discharge at 1C for 1 hour"],
@@ -55,6 +58,7 @@ def test_solve_adds_experiment_extra_parameters_and_idempotency(input_bpx):
 
 
 def test_convert_local_experiment():
+    """Flatten fallback experiment cycles into the API experiment structure."""
     experiment = Experiment(
         [("Discharge at 1C for 1 hour", "Rest for 10 seconds")],
         period="5 seconds",
@@ -72,6 +76,7 @@ def test_convert_local_experiment():
 
 
 def test_solve_rejects_invalid_inputs(tmp_path):
+    """Reject unsupported parameter objects and invalid BPX files."""
     simulator = mock.MagicMock()
     with pytest.raises(ValueError):
         solve(simulator, [])
@@ -82,6 +87,7 @@ def test_solve_rejects_invalid_inputs(tmp_path):
 
 
 def test_numpy_drive_cycle_values_are_serialized(input_bpx, monkeypatch):
+    """Convert NumPy drive-cycle arrays to JSON-compatible lists."""
     simulator = mock.MagicMock()
     experiment = mock.Mock()
     monkeypatch.setattr(

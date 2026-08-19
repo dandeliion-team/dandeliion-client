@@ -13,6 +13,7 @@ RUN_ID = "7ad965d1-7c66-47eb-b095-25a2c4c52f0f"
 
 
 def run(status="succeeded", fields=None):
+    """Return representative validated run metadata for solution tests."""
     return {
         "id": RUN_ID,
         "status": status,
@@ -43,6 +44,7 @@ def run(status="succeeded", fields=None):
 
 
 def simulator_with_fields():
+    """Return a mock transport that serves a time axis and voltage field."""
     simulator = mock.MagicMock()
     simulator._fetch_fields.return_value = {
         "Time [s]": np.array([0.0, 1.0, 2.0]),
@@ -52,10 +54,13 @@ def simulator_with_fields():
 
 
 def test_mapping_fetches_only_missing_fields_and_caches():
+    """Fetch a field with its time axis once, then serve it from the cache."""
     simulator = simulator_with_fields()
     solution = Solution(simulator, run(), time_column="Time [s]")
 
+    # The first lookup fetches both the interpolation axis and requested field.
     first = solution["Voltage [V]"]
+    # The second lookup must reuse the cached arrays without another API call.
     second = solution["Voltage [V]"]
 
     assert isinstance(first, InterpolatedArray)
@@ -70,6 +75,7 @@ def test_mapping_fetches_only_missing_fields_and_caches():
 
 
 def test_returned_arrays_do_not_mutate_cached_values():
+    """Protect the internal field cache from mutations to returned arrays."""
     simulator = simulator_with_fields()
     solution = Solution(simulator, run(), time_column="Time [s]")
     values = solution["Voltage [V]"]
@@ -78,6 +84,7 @@ def test_returned_arrays_do_not_mutate_cached_values():
 
 
 def test_interpolated_array_preserves_metadata_on_views():
+    """Slice interpolation times alongside values when NumPy creates a view."""
     values = InterpolatedArray([0, 1, 2], [4.2, 4.1, 4.0])
     sliced = values[1:]
     assert sliced.t is not None
@@ -86,6 +93,7 @@ def test_interpolated_array_preserves_metadata_on_views():
 
 
 def test_multidimensional_fields_return_plain_arrays():
+    """Avoid attaching one-dimensional interpolation to matrix-valued fields."""
     simulator = mock.MagicMock()
     simulator._fetch_fields.return_value = {
         "Time [s]": np.array([0.0, 1.0]),
@@ -100,11 +108,15 @@ def test_multidimensional_fields_return_plain_arrays():
 
 
 def test_unknown_and_not_ready_fields_raise_clear_errors():
+    """Distinguish unknown result names from fields on unfinished runs."""
     simulator = simulator_with_fields()
     solution = Solution(simulator, run(), time_column="Time [s]")
+
+    # A succeeded solution reports an unknown advertised field as a KeyError.
     with pytest.raises(KeyError):
         _ = solution["Unknown"]
 
+    # A non-terminal solution reports that results are not ready yet.
     queued = run("queued")
     simulator._get_status.return_value = "queued"
     with pytest.raises(DandeliionAPIException, match="Solution not ready"):
@@ -112,6 +124,7 @@ def test_unknown_and_not_ready_fields_raise_clear_errors():
 
 
 def test_status_log_join_cancel_and_dump_delegate():
+    """Delegate lifecycle and persistence operations to the bound transport."""
     simulator = mock.MagicMock()
     simulator._get_status.return_value = "running"
     simulator._get_log.return_value = "log"
@@ -132,6 +145,7 @@ def test_status_log_join_cancel_and_dump_delegate():
 
 
 def test_token_validation_and_identifiers():
+    """Expose run, idempotency, and validated Token Portal metadata."""
     solution = Solution(
         simulator_with_fields(),
         run(),
@@ -144,12 +158,14 @@ def test_token_validation_and_identifiers():
 
 
 def test_plain_array_mode_and_interpolation_validation():
+    """Support plain arrays while rejecting incompatible interpolation data."""
     simulator = simulator_with_fields()
     solution = Solution(simulator, run(), time_column=None)
     values = solution["Voltage [V]"]
     assert isinstance(values, np.ndarray)
     assert not isinstance(values, InterpolatedArray)
 
+    # Construction requires aligned one-dimensional time and value arrays.
     with pytest.raises(ValueError, match="one-dimensional"):
         InterpolatedArray([0, 1], [[1, 2], [3, 4]])
     with pytest.raises(ValueError, match="same length"):
@@ -159,6 +175,7 @@ def test_plain_array_mode_and_interpolation_validation():
 
 
 def test_missing_time_field_and_invalid_field_metadata():
+    """Reject missing interpolation axes and malformed advertised field lists."""
     simulator = mock.MagicMock()
     simulator._fetch_fields.return_value = {"Voltage [V]": np.array([4.2])}
     solution = Solution(
@@ -169,6 +186,7 @@ def test_missing_time_field_and_invalid_field_metadata():
     with pytest.raises(DandeliionAPIException, match="required time"):
         _ = solution["Voltage [V]"]
 
+    # Artifact metadata must expose an ordered list of result field names.
     invalid = run()
     invalid["artifacts"]["solution_fields"] = "invalid"
     with pytest.raises(DandeliionAPIException, match="invalid solution fields"):
@@ -176,6 +194,7 @@ def test_missing_time_field_and_invalid_field_metadata():
 
 
 def test_invalid_or_absent_token_metadata():
+    """Return no validation for absent metadata and reject malformed metadata."""
     no_token = run()
     no_token["portal_validation"] = {}
     assert Solution(simulator_with_fields(), no_token).token_validation is None
@@ -187,7 +206,10 @@ def test_invalid_or_absent_token_metadata():
 
 
 def test_local_result_errors_and_cached_load(tmp_path):
+    """Report local bundle failures while allowing already cached fields."""
     simulator = simulator_with_fields()
+
+    # A bundle marked complete must exist and contain valid JSON result data.
     missing_path = tmp_path / "missing.json"
     solution = Solution(
         simulator,
@@ -199,6 +221,7 @@ def test_local_result_errors_and_cached_load(tmp_path):
     with pytest.raises(DandeliionAPIException, match="invalid solution data"):
         _ = solution["Voltage [V]"]
 
+    # A present bundle must contain every field advertised by run metadata.
     omitted = tmp_path / "omitted.json"
     omitted.write_text('{"result":{"Solution":{"Time [s]":[0]}}}')
     solution = Solution(
@@ -211,5 +234,6 @@ def test_local_result_errors_and_cached_load(tmp_path):
     with pytest.raises(DandeliionAPIException, match="omits"):
         _ = solution["Voltage [V]"]
 
+    # Loading a field that is already cached performs no local or remote read.
     solution._fields["Time [s]"] = np.array([0.0])
     solution._load_fields(["Time [s]"])

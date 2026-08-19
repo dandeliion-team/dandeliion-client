@@ -27,6 +27,8 @@ TOKEN = "a" * 64
 
 
 class FakeResponse:
+    """Provide the subset of a requests response needed by transport tests."""
+
     def __init__(
         self,
         *,
@@ -70,6 +72,8 @@ class FakeResponse:
 
 
 class FakeSession:
+    """Record requests and return a deterministic sequence of HTTP events."""
+
     def __init__(self, *events):
         self.events = list(events)
         self.calls = []
@@ -89,6 +93,7 @@ class FakeSession:
 
 
 def token_validation(valid=True, status="valid"):
+    """Return internally consistent Token Portal validation metadata."""
     return {
         "valid": valid,
         "status": status,
@@ -106,6 +111,7 @@ def run_payload(
     result_size=None,
     urls=None,
 ):
+    """Build a complete flat API v2 run payload for the requested state."""
     if fields is None:
         fields = [] if status != "succeeded" else ["Time [s]", "Voltage [V]"]
     if available is None:
@@ -154,6 +160,7 @@ def run_payload(
     ],
 )
 def test_normalises_supported_api_urls(provided, expected):
+    """Normalize every supported API URL form and redact the bearer token."""
     simulator = Simulator(provided, TOKEN)
     assert simulator.api_url == expected
     assert TOKEN not in repr(simulator)
@@ -172,11 +179,13 @@ def test_normalises_supported_api_urls(provided, expected):
     ],
 )
 def test_rejects_unsafe_or_v1_api_urls(url):
+    """Reject legacy, insecure, credential-bearing, and malformed API URLs."""
     with pytest.raises(DandeliionInterfaceException):
         Simulator(url, TOKEN)
 
 
 def test_accepts_local_http_and_validates_configuration():
+    """Allow local HTTP while rejecting invalid transport configuration."""
     assert Simulator("http://127.0.0.1:8000", TOKEN).api_url.endswith("/api/v2/runs")
     with pytest.raises(DandeliionInterfaceException):
         Simulator(API_ROOT, None)
@@ -191,6 +200,7 @@ def test_accepts_local_http_and_validates_configuration():
 
 
 def test_submit_uses_flat_v2_contract_and_supplied_idempotency_key():
+    """Send the exact v2 submission route, headers, body, and caller key."""
     response = FakeResponse(
         status_code=202,
         json_data=run_payload(),
@@ -217,17 +227,22 @@ def test_submit_uses_flat_v2_contract_and_supplied_idempotency_key():
 
 
 def test_submit_generates_uuid_and_rejects_bad_input():
+    """Generate a submission key and reject unsafe bodies or caller keys."""
     session = FakeSession(FakeResponse(status_code=202, json_data=run_payload()))
     solution = Simulator(API_ROOT, TOKEN, _session=session).submit(
         {"Header": {}},
         is_blocking=False,
     )
     assert len(solution.idempotency_key) == 36
+
+    # Strict serialization rejects non-finite JSON values before any request.
     with pytest.raises(DandeliionInterfaceException):
         Simulator(API_ROOT, TOKEN, _session=FakeSession()).submit(
             {"value": float("nan")},
             is_blocking=False,
         )
+
+    # Caller-supplied keys must satisfy the API's length and syntax contract.
     with pytest.raises(DandeliionInterfaceException):
         Simulator(API_ROOT, TOKEN, _session=FakeSession()).submit(
             {},
@@ -243,6 +258,7 @@ def test_submit_generates_uuid_and_rejects_bad_input():
 
 
 def test_submission_retries_transport_failure_with_identical_body_and_key(monkeypatch):
+    """Reuse identical serialized bytes and key after a transport failure."""
     session = FakeSession(
         requests.ConnectionError("lost"),
         FakeResponse(status_code=202, json_data=run_payload()),
@@ -261,6 +277,7 @@ def test_submission_retries_transport_failure_with_identical_body_and_key(monkey
 
 
 def test_retry_after_and_submission_in_progress_are_retried(monkeypatch):
+    """Retry a transient idempotent reservation still in progress."""
     in_progress = FakeResponse(
         status_code=409,
         json_data={
@@ -283,6 +300,7 @@ def test_retry_after_and_submission_in_progress_are_retried(monkeypatch):
 
 
 def test_authorization_unknown_is_not_retried():
+    """Surface authorization reconciliation identifiers without retrying."""
     response = FakeResponse(
         status_code=503,
         json_data={
@@ -309,6 +327,7 @@ def test_authorization_unknown_is_not_retried():
 
 
 def test_structured_token_rejection():
+    """Expose rejected Token Portal metadata on the typed public exception."""
     response = FakeResponse(
         status_code=403,
         json_data={
@@ -331,6 +350,7 @@ def test_structured_token_rejection():
 
 
 def test_cross_origin_and_malformed_run_responses_are_rejected():
+    """Reject untrusted result links and malformed flat run metadata."""
     payload = run_payload()
     payload["urls"]["result"] = "https://attacker.example/result"
     with pytest.raises(DandeliionAPIException, match="cross-origin"):
@@ -340,6 +360,7 @@ def test_cross_origin_and_malformed_run_responses_are_rejected():
             _session=FakeSession(FakeResponse(status_code=202, json_data=payload)),
         ).submit({}, is_blocking=False)
 
+    # Even same-origin responses must satisfy the complete run schema.
     malformed = run_payload()
     malformed["artifacts"]["available"] = 0
     with pytest.raises(DandeliionAPIException, match="availability"):
@@ -351,6 +372,7 @@ def test_cross_origin_and_malformed_run_responses_are_rejected():
 
 
 def test_status_polling_and_join_backoff(monkeypatch):
+    """Back off unchanged status polls and reset after each state transition."""
     session = FakeSession(
         FakeResponse(status_code=202, json_data=run_payload("queued")),
         FakeResponse(status_code=200, json_data=run_payload("queued")),
@@ -369,6 +391,7 @@ def test_status_polling_and_join_backoff(monkeypatch):
 
 
 def test_join_timeout_and_offline_join(monkeypatch):
+    """Raise the typed timeout once a caller's overall join limit expires."""
     session = FakeSession(FakeResponse(status_code=202, json_data=run_payload("queued")))
     solution = Simulator(API_ROOT, TOKEN, _session=session).submit({}, is_blocking=False)
     times = iter([0.0, 2.0])
@@ -378,6 +401,7 @@ def test_join_timeout_and_offline_join(monkeypatch):
 
 
 def test_incremental_logs_are_appended_without_duplicates():
+    """Follow log offsets across pages without appending content twice."""
     session = FakeSession(
         FakeResponse(status_code=202, json_data=run_payload("running")),
         FakeResponse(
@@ -401,6 +425,7 @@ def test_incremental_logs_are_appended_without_duplicates():
 
 
 def test_selected_results_use_repeated_fields_and_streamed_json():
+    """Stream ordered repeated-field results, interpolate, and cache them."""
     selected = b'{"Solution":{"Time [s]":[0,1],"Voltage [V]":[4.2,4.1]}}'
     session = FakeSession(
         FakeResponse(status_code=202, json_data=run_payload("succeeded")),
@@ -425,6 +450,7 @@ def test_selected_results_use_repeated_fields_and_streamed_json():
 
 
 def test_cancellation_updates_run():
+    """Post to the cancel route and cache the returned terminal run state."""
     cancelled = run_payload("cancelled")
     session = FakeSession(
         FakeResponse(status_code=202, json_data=run_payload("running")),
@@ -437,6 +463,8 @@ def test_cancellation_updates_run():
 
 
 def test_cancellation_rejects_invalid_state_and_propagates_terminal_error():
+    """Reject malformed cancellation success and preserve terminal API errors."""
+    # A nominally successful response must contain a cancellation state.
     invalid_session = FakeSession(
         FakeResponse(status_code=202, json_data=run_payload("running")),
         FakeResponse(status_code=202, json_data=run_payload("running")),
@@ -448,6 +476,7 @@ def test_cancellation_rejects_invalid_state_and_propagates_terminal_error():
     with pytest.raises(DandeliionAPIException, match="invalid cancellation state"):
         solution.cancel()
 
+    # A completed run preserves the API's structured run_not_cancellable error.
     error_session = FakeSession(
         FakeResponse(status_code=202, json_data=run_payload("succeeded")),
         FakeResponse(
@@ -472,6 +501,7 @@ def test_cancellation_rejects_invalid_state_and_propagates_terminal_error():
 
 
 def test_dump_streams_atomic_v2_bundle_and_restores_offline(tmp_path):
+    """Stream a sanitized v2 bundle that restores complete results offline."""
     result = b'{"Solution":{"Time [s]":[0,1],"Voltage [V]":[4.2,4.1]}}'
     run = run_payload("succeeded", result_size=len(result))
     session = FakeSession(
@@ -514,6 +544,7 @@ def test_dump_streams_atomic_v2_bundle_and_restores_offline(tmp_path):
 
 
 def test_dump_falls_back_to_selected_stream_when_full_route_returns_404(tmp_path):
+    """Reconstruct a full bundle from selected fields when direct download is absent."""
     selected = b'{"Solution":{"Time [s]":[0,1],"Voltage [V]":[4.2,4.1]}}'
     run = run_payload("succeeded", result_size=len(selected) + 100)
     session = FakeSession(
@@ -546,6 +577,7 @@ def test_dump_falls_back_to_selected_stream_when_full_route_returns_404(tmp_path
 
 
 def test_dump_reports_when_full_route_fallback_exceeds_field_limit(tmp_path):
+    """Report when the fallback cannot request all fields in one selection."""
     fields = [f"Field {index}" for index in range(101)]
     session = FakeSession(
         FakeResponse(
@@ -567,6 +599,7 @@ def test_dump_reports_when_full_route_fallback_exceeds_field_limit(tmp_path):
 
 
 def test_incomplete_bundle_requires_explicit_pair_to_reconnect(tmp_path):
+    """Persist unreachable runs offline and require explicit reconnection credentials."""
     session = FakeSession(
         FakeResponse(status_code=202, json_data=run_payload("queued")),
         requests.ConnectionError("offline"),
@@ -579,6 +612,7 @@ def test_incomplete_bundle_requires_explicit_pair_to_reconnect(tmp_path):
     solution.dump(target)
     assert json.loads(target.read_text())["result"] is None
 
+    # Metadata-only restores remain offline until both URL and key are supplied.
     restored = Simulator.restore(target)
     with pytest.raises(DandeliionAPIException, match="offline"):
         _ = restored.status
@@ -587,6 +621,7 @@ def test_incomplete_bundle_requires_explicit_pair_to_reconnect(tmp_path):
 
 
 def test_failed_download_preserves_existing_target(tmp_path):
+    """Leave an existing target intact after a streamed length mismatch."""
     result = b'{"Solution":{"Time [s]":[0]}}'
     target = tmp_path / "solution.json"
     target.write_text("existing")
@@ -616,11 +651,14 @@ def test_failed_download_preserves_existing_target(tmp_path):
 
 
 def test_restore_rejects_v1_and_corrupt_bundles(tmp_path):
+    """Reject legacy restore objects and syntactically invalid JSON bundles."""
+    # Client 2.0 intentionally has no migration path for v1 restore files.
     v1 = tmp_path / "v1.json"
     v1.write_text(json.dumps({"Run": {"id": "old"}}))
     with pytest.raises(DandeliionInterfaceException, match="Unsupported v1"):
         Simulator.restore(v1)
 
+    # Corrupt JSON is reported as a bundle error rather than leaking parser errors.
     broken = tmp_path / "broken.json"
     broken.write_text("{")
     with pytest.raises(DandeliionAPIException, match="valid JSON"):
@@ -644,6 +682,7 @@ def test_restore_rejects_v1_and_corrupt_bundles(tmp_path):
     ],
 )
 def test_run_schema_validation_edges(path, value, message):
+    """Reject invalid values in every security-relevant run metadata field."""
     payload = run_payload()
     target = payload
     for key in path[:-1]:
@@ -654,6 +693,7 @@ def test_run_schema_validation_edges(path, value, message):
 
 
 def test_run_schema_rejects_nonobjects_and_wrong_ids():
+    """Require object metadata, the requested run ID, and URL context online."""
     with pytest.raises(DandeliionAPIException, match="expected an object"):
         _validate_run([], collection_url=RUNS_URL)
     with pytest.raises(DandeliionAPIException, match="was requested"):
@@ -674,6 +714,7 @@ def test_run_schema_rejects_nonobjects_and_wrong_ids():
     ],
 )
 def test_run_url_validation_edges(name, url, message):
+    """Reject query-bearing or path-confused resource links from the API."""
     payload = run_payload()
     payload["urls"][name] = url
     with pytest.raises(DandeliionAPIException, match=message):
@@ -681,6 +722,7 @@ def test_run_url_validation_edges(name, url, message):
 
 
 def test_default_https_port_is_same_origin():
+    """Treat an explicit default HTTPS port as the trusted API origin."""
     payload = run_payload()
     payload["urls"] = {name: url.replace(API_ROOT, f"{API_ROOT}:443") for name, url in payload["urls"].items()}
     run = _validate_run(payload, collection_url=RUNS_URL)
@@ -688,6 +730,8 @@ def test_default_https_port_is_same_origin():
 
 
 def test_http_redirect_cross_origin_and_permanent_errors():
+    """Refuse redirects and foreign origins while preserving permanent errors."""
+    # Redirects are never followed, even if a server supplies a Location.
     redirect = FakeResponse(status_code=302, headers={"Location": "https://attacker.example"})
     with pytest.raises(DandeliionAPIException) as raised:
         Simulator(API_ROOT, TOKEN, max_attempts=1, _session=FakeSession(redirect))._request(
@@ -696,11 +740,13 @@ def test_http_redirect_cross_origin_and_permanent_errors():
     assert raised.value.code == "redirect_refused"
     assert redirect.closed
 
+    # The effective response URL must remain on the configured API origin.
     foreign = FakeResponse(status_code=200, url="https://attacker.example/api/v2/runs")
     with pytest.raises(DandeliionAPIException) as raised:
         Simulator(API_ROOT, TOKEN, _session=FakeSession(foreign))._request("GET", RUNS_URL, expected_status={200})
     assert raised.value.code == "cross_origin_response"
 
+    # Non-retryable responses retain fallback messages and request identifiers.
     error = FakeResponse(
         status_code=418,
         json_data={"error": "short and stout"},
@@ -716,6 +762,7 @@ def test_http_redirect_cross_origin_and_permanent_errors():
 
 
 def test_retry_after_is_capped_and_invalid_value_falls_back(monkeypatch):
+    """Cap numeric Retry-After delays and ignore invalid server values."""
     sleeps = []
     monkeypatch.setattr("dandeliion.client.simulator.time.sleep", sleeps.append)
     session = FakeSession(
@@ -738,6 +785,8 @@ def test_retry_after_is_capped_and_invalid_value_falls_back(monkeypatch):
 
 
 def test_transport_exhaustion_invalid_token_and_offline_submit(monkeypatch):
+    """Report exhausted transport retries and reject unusable submitters."""
+    # Exhausting all configured transport attempts produces one structured error.
     monkeypatch.setattr("dandeliion.client.simulator.time.sleep", lambda _delay: None)
     simulator = Simulator(
         API_ROOT,
@@ -752,6 +801,7 @@ def test_transport_exhaustion_invalid_token_and_offline_submit(monkeypatch):
         simulator._request("GET", RUNS_URL, expected_status={200})
     assert raised.value.code == "transport_error"
 
+    # Submission separately requires a valid token, online transport, and mapping body.
     with pytest.raises(DandeliionInterfaceException, match="64 lowercase"):
         Simulator(API_ROOT, "bad", _session=FakeSession()).submit({}, is_blocking=False)
     with pytest.raises(DandeliionAPIException, match="offline"):
@@ -761,6 +811,8 @@ def test_transport_exhaustion_invalid_token_and_offline_submit(monkeypatch):
 
 
 def test_submit_rejects_bad_location_and_can_block(monkeypatch):
+    """Validate submission Location headers and honor blocking submission mode."""
+    # Accepted submissions cannot redirect run ownership to an untrusted origin.
     bad_location = FakeResponse(
         status_code=202,
         json_data=run_payload(),
@@ -769,6 +821,7 @@ def test_submit_rejects_bad_location_and_can_block(monkeypatch):
     with pytest.raises(DandeliionAPIException, match="Location"):
         Simulator(API_ROOT, TOKEN, _session=FakeSession(bad_location)).submit({}, is_blocking=False)
 
+    # Blocking submission joins the accepted solution without an overall timeout.
     joined = []
     monkeypatch.setattr(
         "dandeliion.client.solution.Solution.join",
@@ -783,6 +836,8 @@ def test_submit_rejects_bad_location_and_can_block(monkeypatch):
 
 
 def test_refresh_join_and_result_state_edges():
+    """Handle offline joins, terminal joins, failures, and expired artifacts."""
+    # Non-terminal offline bundles can neither refresh nor wait for completion.
     queued = run_payload("queued")
     offline_solution = Solution(Simulator(None, None), _validate_run(queued, collection_url=None, require_urls=False))
     with pytest.raises(DandeliionAPIException, match="offline"):
@@ -792,6 +847,7 @@ def test_refresh_join_and_result_state_edges():
     with pytest.raises(DandeliionInterfaceException, match="non-negative"):
         Simulator(API_ROOT, TOKEN)._join(offline_solution, timeout=-1)
 
+    # Joining an already-terminal success is an immediate no-op.
     succeeded = run_payload("succeeded")
     succeeded_solution = Solution(
         Simulator(None, None),
@@ -799,6 +855,7 @@ def test_refresh_join_and_result_state_edges():
     )
     succeeded_solution.join()
 
+    # Failed runs expose their solver error when results are requested.
     failed = run_payload("failed")
     failed["error_code"] = "solver_failed"
     failed["error_message"] = "solver failed"
@@ -810,6 +867,7 @@ def test_refresh_join_and_result_state_edges():
         Simulator._ensure_succeeded(failed_solution)
     assert raised.value.code == "solver_failed"
 
+    # Successful metadata is insufficient once retained artifacts are unavailable.
     unavailable = run_payload("succeeded", available=False)
     unavailable_solution = Solution(
         Simulator(None, None),
@@ -820,6 +878,8 @@ def test_refresh_join_and_result_state_edges():
 
 
 def test_selected_result_validation_edges():
+    """Reject unexpected, omitted, unavailable, and non-array selected fields."""
+    # A selected response may not return fields the client did not request.
     unexpected = b'{"Solution":{"Other":[1]}}'
     session = FakeSession(
         FakeResponse(status_code=202, json_data=run_payload("succeeded")),
@@ -829,6 +889,7 @@ def test_selected_result_validation_edges():
     with pytest.raises(DandeliionAPIException, match="unexpected"):
         solution._sim._fetch_fields(solution, ["Voltage [V]"])
 
+    # Every requested field must be present in the streamed response.
     missing = b'{"Solution":{"Time [s]":[0]}}'
     session = FakeSession(
         FakeResponse(status_code=202, json_data=run_payload("succeeded")),
@@ -838,10 +899,12 @@ def test_selected_result_validation_edges():
     with pytest.raises(DandeliionAPIException, match="omitted"):
         solution._sim._fetch_fields(solution, ["Time [s]", "Voltage [V]"])
 
+    # Empty selections are local no-ops; non-empty offline selections fail clearly.
     assert solution._sim._fetch_fields(solution, []) == {}
     with pytest.raises(DandeliionAPIException, match="not connected"):
         Simulator(None, None)._fetch_fields(solution, ["Time [s]"])
 
+    # Result fields must be numeric JSON arrays rather than scalar values.
     scalar = b'{"Solution":{"Voltage [V]":4.2}}'
     session = FakeSession(
         FakeResponse(status_code=202, json_data=run_payload("succeeded")),
@@ -864,6 +927,7 @@ def test_selected_result_validation_edges():
     ],
 )
 def test_log_validation_edges(payload):
+    """Reject malformed incremental log pages and non-progressing content."""
     session = FakeSession(
         FakeResponse(status_code=202, json_data=run_payload("running")),
         FakeResponse(status_code=200, json_data=payload),
@@ -874,6 +938,8 @@ def test_log_validation_edges(payload):
 
 
 def test_log_offset_cancel_and_dump_configuration_edges(tmp_path):
+    """Reject mismatched log offsets, offline cancellation, and bad dump paths."""
+    # Log pages must begin at the exact byte offset requested by the client.
     session = FakeSession(
         FakeResponse(status_code=202, json_data=run_payload("running")),
         FakeResponse(
@@ -884,16 +950,23 @@ def test_log_offset_cancel_and_dump_configuration_edges(tmp_path):
     solution = Simulator(API_ROOT, TOKEN, _session=session).submit({}, is_blocking=False)
     with pytest.raises(DandeliionAPIException, match="unexpected log offset"):
         _ = solution.log
+
+    # Cancellation is impossible without an explicitly connected API transport.
     with pytest.raises(DandeliionAPIException, match="Cannot cancel"):
         Solution(
             Simulator(None, None), _validate_run(run_payload("running"), collection_url=None, require_urls=False)
         ).cancel()
+
+    # Atomic dumps require an existing destination directory.
     with pytest.raises(DandeliionInterfaceException, match="directory"):
         solution.dump(tmp_path / "missing" / "solution.json")
 
 
 def test_dump_rejects_bad_result_headers_and_sizes(tmp_path):
+    """Reject unsafe result responses without replacing existing bundle files."""
     result = b'{"Solution":{"Time [s]":[0]}}'
+
+    # Validate response metadata before accepting any streamed result bytes.
     cases = [
         FakeResponse(status_code=200, body=result, headers={"Content-Type": "text/plain"}),
         FakeResponse(status_code=200, body=b"", headers={"Content-Type": "application/json"}),
@@ -921,6 +994,7 @@ def test_dump_rejects_bad_result_headers_and_sizes(tmp_path):
             solution.dump(target)
         assert target.read_bytes() == b"existing"
 
+    # Validate the complete streamed JSON shape and advertised field order.
     invalid_results = [
         (b'{"Solution":{"Time [s]":0,"Voltage [V]":[4.2]}}', "not a JSON array"),
         (b'{"Solution":{"Time [s]":[0]}}', "do not match"),
@@ -954,6 +1028,8 @@ def test_dump_rejects_bad_result_headers_and_sizes(tmp_path):
 
 
 def test_offline_bundle_copy_and_bundle_result_validation(tmp_path):
+    """Copy completed offline bundles and validate their top-level result value."""
+    # A completed restore can be copied byte-for-byte or dumped onto itself.
     result = b'{"Solution":{"Time [s]":[0],"Voltage [V]":[4.2]}}'
     run = run_payload("succeeded", result_size=len(result))
     session = FakeSession(
@@ -979,6 +1055,7 @@ def test_offline_bundle_copy_and_bundle_result_validation(tmp_path):
     assert copy.read_bytes() == source.read_bytes()
     restored.dump(source)
 
+    # Bundle inspection distinguishes invalid scalar results from missing results.
     scalar = tmp_path / "scalar.json"
     scalar.write_text('{"result":1}')
     with pytest.raises(DandeliionAPIException, match="invalid result"):
@@ -990,6 +1067,7 @@ def test_offline_bundle_copy_and_bundle_result_validation(tmp_path):
 
 
 def test_restore_bundle_metadata_validation(tmp_path):
+    """Reject malformed client metadata, inconsistent results, and absent files."""
     base = {
         "format": "dandeliion-client-solution",
         "format_version": 2,
@@ -998,6 +1076,8 @@ def test_restore_bundle_metadata_validation(tmp_path):
         "log": "",
         "result": None,
     }
+
+    # Validate each persisted client-owned metadata field independently.
     cases = [
         ("log", 1, "invalid log"),
         ("client", {"idempotency_key": "short", "log_offset": 0}, "idempotency"),
@@ -1011,11 +1091,14 @@ def test_restore_bundle_metadata_validation(tmp_path):
         with pytest.raises(DandeliionAPIException, match=message):
             Simulator.restore(path)
 
+    # A local result is valid only for a run persisted in the succeeded state.
     wrong_state = deepcopy(base)
     wrong_state["result"] = {"Solution": {}}
     path = tmp_path / "wrong-state.json"
     path.write_text(json.dumps(wrong_state))
     with pytest.raises(DandeliionAPIException, match="did not succeed"):
         Simulator.restore(path)
+
+    # Missing paths fail as interface errors before bundle parsing begins.
     with pytest.raises(DandeliionInterfaceException, match="does not exist"):
         Simulator.restore(tmp_path / "absent.json")
